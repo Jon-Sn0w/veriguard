@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord On Chain Verification</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="styles/styles.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+</head>
+
+<body class="bg-animated-gradient text-white min-h-screen">
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-white font-bold text-xl">Discord On Chain Verification</div>
+            <div class="relative">
+                <button class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                    <span>Menu</span>
+                    <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414-1.414L10 9.586l3.293-3.293a1 1 0 011.414 1.414L11.414 11l3.293 3.293a1 1 0 01-1.414 1.414L10 12.414l-3.293 3.293a1 1 0 01-1.414-1.414L8.586 11 5.293 7.707z"/>
+                    </svg>
+                </button>
+                <ul class="dropdown-menu absolute hidden text-gray-700 pt-1">
+                    <li class="">
+                        <a class="rounded-t bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/">Home</a>
+                    </li>
+                    <li class="">
+                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/addnft">Add NFT</a>
+                    </li>
+                    <li class="">
+                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/removenft">Remove NFT</a>
+                    </li>
+                    <li class="">
+                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registerrole">Role Registry By Count</a>
+                    </li>
+                    <li class="">
+                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registervaluerole">Value Based Role Registry</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="flex items-center justify-center min-h-screen">
+        <div class="container mx-auto px-4 py-8 max-w-lg text-center">
+            <h1 class="text-4xl font-bold mb-6 neon-text">Connect Your Wallet</h1>
+            <p class="mb-6 text-xl">Please connect your wallet to proceed with NFT verification for Discord access.</p>
+
+            <button id="connectWalletButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300 ease-in-out transform hover:scale-110">
+                Connect Wallet
+            </button>
+
+            <div id="nftSelection" class="hidden">
+                <h2 class="text-2xl font-bold mb-4">Select Your NFT for Verification</h2>
+                <form id="nftForm" onsubmit="submitNFT(event)" class="space-y-4">
+                    <label for="nftAddress" class="block text-lg">Choose NFT:</label>
+                    <select id="nftAddress" name="nftAddress" class="block w-full text-black p-2 rounded">
+                        <!-- NFT options will be dynamically populated here -->
+                    </select>
+                    <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-110">
+                        Verify NFT
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/connectWallet.js"></script>
+</body>

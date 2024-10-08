@@ -1,0 +1,30 @@
+{
+  "name": "veriguard",
+  "version": "1.0.0",
+  "description": "prototype on chain nft verification bot for discord",
+  "main": "prime.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "j0n-sn0w",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "body-parser": "^1.20.2",
+    "connect-redis": "^7.1.1",
+    "cors": "^2.8.5",
+    "discord.js": "^14.15.2",
+    "dotenv": "^16.4.5",
+    "ethers": "^5.7.2",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "ioredis": "^5.4.1",
+    "node-fetch": "^3.3.2",
+    "path": "^0.12.7",
+    "redis": "^4.6.15",
+    "request": "^2.88.2",
+    "ua-parser-js": "^1.0.38",
+    "uuid": "^9.0.1"
+  }
+}

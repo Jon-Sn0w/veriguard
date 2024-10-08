@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your NFT</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="styles/styles.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+</head>
+
+<body class="bg-animated-gradient text-white min-h-screen">
+    <!-- Navigation Bar -->
+    <nav>
+        <div class="container mx-auto">
+            <div class="text-white">Discord On Chain Verification</div>
+            <div class="relative">
+                <button class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                    <span>Menu</span>
+                    <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414-1.414L10 9.586l3.293-3.293a1 1 0 011.414 1.414L11.414 11l3.293 3.293a1 1 0 01-1.414 1.414L10 12.414l-3.293 3.293a1 1 0 01-1.414-1.414L8.586 11 5.293 7.707z"/>
+                    </svg>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="rounded-t bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/">Home</a></li>
+                    <li><a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/addnft">Add NFT</a></li>
+                    <li><a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/removenft">Remove NFT</a></li>
+                    <li><a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registerrole">Role Registry By Count</a></li>
+                    <li><a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registervaluerole">Value Based Role Registry</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="container mx-auto px-4 py-8 max-w-lg text-center">
+        <h1 class="text-4xl font-bold mb-6 neon-text">Verify Your NFT</h1>
+        <p class="mb-6 text-xl">Please connect your wallet to verify your NFT for Discord access.</p>
+
+        <!-- Network Selection -->
+        <label for="network" class="block text-lg">Select Network:</label>
+        <select id="network" name="network" class="block w-full text-black p-2 rounded mb-4" required>
+            <option value="songbird">Songbird</option>
+            <option value="flare">Flare</option>
+        </select>
+
+        <button id="connectWalletButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300 ease-in-out transform hover:scale-110">
+            Connect Wallet
+        </button>
+
+        <!-- Message container for success/error messages -->
+        <div id="messageContainer"></div>
+    </div>
+
+    <script src="js/connectWallet.js"></script>
+    <script src="js/verify.js"></script>
+</body>
+</html>
