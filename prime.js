@@ -197,7 +197,9 @@ client.on('interactionCreate', async interaction => {
         console.log(`Is Owner: ${isOwner}, Count: ${count}`);
 
         if (isOwner) {
-            const roles = await getRolesForNFT(nftAddress, count);
+            // Call the smart contract function getRolesForNFT
+            const rolesData = await nftVerificationContract.getRolesForNFT(nftAddress);
+            const roles = rolesData.map(role => role.roleName); // Extracting role names from the contract response
 
             if (roles.length > 0) {
                 const guild = await client.guilds.fetch(interaction.guild.id);
@@ -213,36 +215,31 @@ client.on('interactionCreate', async interaction => {
             } else {
                 console.log('No standard roles found for the given NFT. Checking for value-based roles...');
 
-                const { eligible, roleName, hasValueRole } = await assignValueRoles.assignRolesBasedOnValue(walletAddress, nftAddress, count);
+                const { eligible, roleName } = await assignValueRoles.assignRolesBasedOnValue(walletAddress, nftAddress, count);
 
-                if (hasValueRole) {
-                    if (eligible) {
-                        console.log(`User is eligible for the value-based role: ${roleName}`);
-                        const guild = await client.guilds.fetch(interaction.guild.id);
-                        const member = await guild.members.fetch(userId);
+                if (eligible) {
+                    console.log(`User is eligible for the value-based role: ${roleName}`);
+                    const guild = await client.guilds.fetch(interaction.guild.id);
+                    const member = await guild.members.fetch(userId);
 
-                        const role = guild.roles.cache.find(r => r.name === roleName);
-                        if (role) {
-                            console.log(`Assigning role: ${roleName} to user ${interaction.user.username}`);
-                            try {
-                                await member.roles.add(role);
-                                console.log(`Role ${roleName} successfully assigned to ${interaction.user.username}`);
-                                await interaction.editReply({ content: `NFT value-based ownership verified and role assigned: ${roleName}`, ephemeral: true });
-                            } catch (roleAssignError) {
-                                console.error(`Error assigning role: ${roleAssignError}`);
-                                await interaction.editReply({ content: `Error assigning role: ${roleAssignError.message}`, ephemeral: true });
-                            }
-                        } else {
-                            console.log(`Role not found in guild: ${roleName}`);
-                            await interaction.editReply({ content: `Role ${roleName} could not be found in the server.`, ephemeral: true });
+                    const role = guild.roles.cache.find(r => r.name === roleName);
+                    if (role) {
+                        console.log(`Assigning role: ${roleName} to user ${interaction.user.username}`);
+                        try {
+                            await member.roles.add(role);
+                            console.log(`Role ${roleName} successfully assigned to ${interaction.user.username}`);
+                            await interaction.editReply({ content: `NFT value-based ownership verified and role assigned: ${roleName}`, ephemeral: true });
+                        } catch (roleAssignError) {
+                            console.error(`Error assigning role: ${roleAssignError}`);
+                            await interaction.editReply({ content: `Error assigning role: ${roleAssignError.message}`, ephemeral: true });
                         }
                     } else {
-                        console.log(`User does not meet the value requirements for role: ${roleName}`);
-                        await interaction.editReply({ content: `You do not meet the value requirements for the role: ${roleName}`, ephemeral: true });
+                        console.log(`Role not found in guild: ${roleName}`);
+                        await interaction.editReply({ content: `Role ${roleName} could not be found in the server.`, ephemeral: true });
                     }
                 } else {
-                    console.log(`No value-based roles found for NFT: ${nftAddress}`);
-                    await interaction.editReply({ content: 'No roles found for the given NFT.', ephemeral: true });
+                    console.log('User does not meet the value requirements for any roles.');
+                    await interaction.editReply({ content: 'You do not meet the value requirements for any roles.', ephemeral: true });
                 }
 
                 // Ensure verification data is deleted after role assignment attempt
@@ -255,111 +252,118 @@ client.on('interactionCreate', async interaction => {
         console.error('NFT verification failed:', error);
         await interaction.editReply({ content: `NFT verification failed: ${error.message}. Please try again.`, ephemeral: true });
     }
+
+    // Run cleanRedis.js after the process is completed
+    const { cleanRedisKeys } = require('./server/public/js/cleanRedis');
+    await cleanRedisKeys();
+    console.log('Ran cleanRedisKeys successfully.');
 } else if (commandName === 'updateallroles') {
-    await interaction.deferReply({ ephemeral: true });
-    const nftAddress = options.getString('nftaddress');
-    const logEvents = [];
+            await interaction.deferReply({ ephemeral: true });
+            const nftAddress = options.getString('nftaddress');
+            const logEvents = [];
 
-    try {
-        const guildId = interaction.guild.id;
-        const guild = await client.guilds.fetch(guildId);
-        const keys = await redisClient.keys('user:*');
+            try {
+                const guildId = interaction.guild.id;
+                const guild = await client.guilds.fetch(guildId);
+                const keys = await redisClient.keys('user:*');
 
-        for (const key of keys) {
-            const userData = JSON.parse(await redisClient.get(key));
+                for (const key of keys) {
+                    const userData = JSON.parse(await redisClient.get(key));
 
-            if (userData.guildIds && userData.guildIds.includes(guildId)) {
-                logEvents.push(`Processing user: ${userData.username}`);
+                    if (userData.guildIds && userData.guildIds.includes(guildId)) {
+                        logEvents.push(`Processing user: ${userData.username}`);
 
-                const walletAddresses = userData.walletAddresses || [];
-                const member = await guild.members.fetch(userData.discordId);
+                        const walletAddresses = userData.walletAddresses || [];
+                        const member = await guild.members.fetch(userData.discordId);
 
-                if (!member.manageable) {
-                    logEvents.push(`Skipped ${userData.username}: Bot lacks permission to manage roles.`);
-                    continue;
-                }
-
-                let totalCount = 0;
-                let isOwner = false;
-
-                for (const walletAddress of walletAddresses) {
-                    try {
-                        const [ownershipStatus, count] = await nftVerificationContract.verifyOwnershipWithCount(walletAddress, nftAddress);
-                        logEvents.push(`User ${userData.username} owns ${count} of NFT ${nftAddress} in wallet ${walletAddress}`);
-
-                        if (ownershipStatus) {
-                            isOwner = true;
-                            totalCount += count;
+                        if (!member.manageable) {
+                            logEvents.push(`Skipped ${userData.username}: Bot lacks permission to manage roles.`);
+                            continue;
                         }
-                    } catch (error) {
-                        console.error(`Error verifying ownership for ${userData.username}:`, error);
-                        logEvents.push(`Error verifying ownership for ${userData.username}: ${error.message}`);
-                    }
-                }
 
-                const currentRoles = member.roles.cache;
+                        let totalCount = 0;
+                        let isOwner = false;
 
-                // Standard role processing
-                if (isOwner) {
-                    const rolesToAssign = await getRolesForNFT(nftAddress, totalCount);
-                    const roleObjects = rolesToAssign.map(roleName => guild.roles.cache.find(r => r.name === roleName)).filter(Boolean);
-
-                    const rolesToAdd = roleObjects.filter(role => !currentRoles.has(role.id));
-                    if (rolesToAdd.length > 0) {
-                        await member.roles.add(rolesToAdd);
-                        logEvents.push(`Assigned standard roles to ${userData.username}: ${rolesToAdd.map(role => role.name).join(', ')}`);
-                    } else {
-                        logEvents.push(`No new standard roles to assign for ${userData.username}`);
-                    }
-
-                    // Value-based role processing
-                    try {
-                        const { eligible, roleName, hasValueRole } = await assignValueRoles.assignRolesBasedOnValue(walletAddresses[0], nftAddress, totalCount);
-                        
-                        if (hasValueRole) {
-                            const valueRole = guild.roles.cache.find(r => r.name === roleName);
-                            if (eligible && valueRole) {
-                                if (!currentRoles.has(valueRole.id)) {
-                                    await member.roles.add(valueRole);
-                                    logEvents.push(`Assigned value-based role to ${userData.username}: ${roleName}`);
-                                } else {
-                                    logEvents.push(`${userData.username} already has the value-based role: ${roleName}`);
+                        for (const walletAddress of walletAddresses) {
+                            try {
+                                const nftMappings = await nftVerificationContract.nftMappings(nftAddress);
+                                for (const mapping of nftMappings) {
+                                    const { tokenId, requiredCount } = mapping;
+                                    const balance = await nftVerificationContract.balanceOf(walletAddress, tokenId);
+                                    if (balance.gte(requiredCount)) {
+                                        isOwner = true;
+                                        totalCount += balance.toNumber();
+                                    }
                                 }
-                            } else if (valueRole && currentRoles.has(valueRole.id)) {
-                                await member.roles.remove(valueRole);
-                                logEvents.push(`Removed value-based role from ${userData.username}: ${roleName} (no longer eligible)`);
-                            } else if (eligible) {
-                                logEvents.push(`Value-based role ${roleName} not found in the server for ${userData.username}`);
-                            } else {
-                                logEvents.push(`${userData.username} does not meet the value requirements for role: ${roleName}`);
+                            } catch (error) {
+                                console.error(`Error verifying ownership for ${userData.username}:`, error);
+                                logEvents.push(`Error verifying ownership for ${userData.username}: ${error.message}`);
                             }
                         }
-                    } catch (valueRoleError) {
-                        console.error(`Error processing value-based roles for ${userData.username}:`, valueRoleError);
-                        logEvents.push(`Error processing value-based roles for ${userData.username}: ${valueRoleError.message}`);
-                    }
-                } else {
-                    // Remove all roles related to this NFT if the user no longer owns it
-                    const rolesToRemove = currentRoles.filter(role => 
-                        (role.name.startsWith("NFT_") || role.name.startsWith("Value_")) && 
-                        role.name.includes(nftAddress)
-                    );
-                    if (rolesToRemove.size > 0) {
-                        await member.roles.remove(rolesToRemove);
-                        logEvents.push(`Removed roles from ${userData.username}: ${rolesToRemove.map(role => role.name).join(', ')} (no longer owns NFT)`);
-                    } else {
-                        logEvents.push(`No roles to remove for ${userData.username}`);
+
+                        const currentRoles = member.roles.cache;
+
+                        // Standard role processing
+                        if (isOwner) {
+                            const rolesToAssign = await getRolesForNFT(nftAddress, totalCount);
+                            const roleObjects = rolesToAssign.map(roleName => guild.roles.cache.find(r => r.name === roleName)).filter(Boolean);
+
+                            const rolesToAdd = roleObjects.filter(role => !currentRoles.has(role.id));
+                            if (rolesToAdd.length > 0) {
+                                await member.roles.add(rolesToAdd);
+                                logEvents.push(`Assigned standard roles to ${userData.username}: ${rolesToAdd.map(role => role.name).join(', ')}`);
+                            } else {
+                                logEvents.push(`No new standard roles to assign for ${userData.username}`);
+                            }
+
+                            // Value-based role processing
+                            try {
+                                const { eligible, roleName, hasValueRole } = await assignValueRoles.assignRolesBasedOnValue(walletAddresses[0], nftAddress, totalCount);
+                                
+                                if (hasValueRole) {
+                                    const valueRole = guild.roles.cache.find(r => r.name === roleName);
+                                    if (eligible && valueRole) {
+                                        if (!currentRoles.has(valueRole.id)) {
+                                            await member.roles.add(valueRole);
+                                            logEvents.push(`Assigned value-based role to ${userData.username}: ${roleName}`);
+                                        } else {
+                                            logEvents.push(`${userData.username} already has the value-based role: ${roleName}`);
+                                        }
+                                    } else if (valueRole && currentRoles.has(valueRole.id)) {
+                                        await member.roles.remove(valueRole);
+                                        logEvents.push(`Removed value-based role from ${userData.username}: ${roleName} (no longer eligible)`);
+                                    } else if (eligible) {
+                                        logEvents.push(`Value-based role ${roleName} not found in the server for ${userData.username}`);
+                                    } else {
+                                        logEvents.push(`${userData.username} does not meet the value requirements for role: ${roleName}`);
+                                    }
+                                }
+                            } catch (valueRoleError) {
+                                console.error(`Error processing value-based roles for ${userData.username}:`, valueRoleError);
+                                logEvents.push(`Error processing value-based roles for ${userData.username}: ${valueRoleError.message}`);
+                            }
+                        } else {
+                            // Remove all roles related to this NFT if the user no longer owns it
+                            const rolesToRemove = currentRoles.filter(role => 
+                                (role.name.startsWith("NFT_") || role.name.startsWith("Value_")) && 
+                                role.name.includes(nftAddress)
+                            );
+                            if (rolesToRemove.size > 0) {
+                                await member.roles.remove(rolesToRemove);
+                                logEvents.push(`Removed roles from ${userData.username}: ${rolesToRemove.map(role => role.name).join(', ')} (no longer owns NFT)`);
+                            } else {
+                                logEvents.push(`No roles to remove for ${userData.username}`);
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        await interaction.editReply({ content: `Process completed.\n\n${logEvents.join('\n')}`, ephemeral: true });
-    } catch (error) {
-        console.error('Error during role update process:', error);
-        await interaction.editReply({ content: `An error occurred while updating roles.\n\n${logEvents.join('\n')}`, ephemeral: true });
-    }
-} else if (commandName === 'checkusernfts') {
+                await interaction.editReply({ content: `Process completed.\n\n${logEvents.join('\n')}`, ephemeral: true });
+            } catch (error) {
+                console.error('Error during role update process:', error);
+                await interaction.editReply({ content: `An error occurred while updating roles.\n\n${logEvents.join('\n')}`, ephemeral: true });
+            }
+        } else if (commandName === 'checkusernfts') {
             await interaction.deferReply({ ephemeral: true });
             const username = options.getString('username');
             const userData = userDataManager.retrieveUserData(username);
@@ -444,21 +448,19 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-async function getRolesForNFT(nftAddress, count) {
+async function getRolesForTokenId(nftAddress, tokenId) {
     try {
         const roles = [];
 
-        const nftRoles = await nftVerificationContract.getRolesForNFT(nftAddress);
+        const nftRoles = await nftVerificationContract.getRolesForTokenId(nftAddress, tokenId);
 
         for (const role of nftRoles) {
-            if (count >= role.requiredNFTCount) {
-                roles.push(role.roleName);
-            }
+            roles.push(role.roleName);
         }
 
         return roles;
     } catch (error) {
-        console.error('Error fetching roles for NFT:', error);
+        console.error('Error fetching roles for token ID:', error);
         return [];
     }
 }

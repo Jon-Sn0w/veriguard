@@ -139,6 +139,9 @@ app.post('/api/wallet-connect', async (req, res) => {
         const username = verificationData.username;
         await userDataManager.storeUserData(username, { discordId, username, walletAddress, ipAddress, nftAddress, guildId }, req);
 
+        // Immediately delete verification data and session upon successful verification
+        await sessionManager.deleteSession(req);
+
         console.log('Verification successful');
         res.json({ 
             message: 'Verification successful. Please return to Discord to continue.', 

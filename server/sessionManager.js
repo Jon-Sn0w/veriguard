@@ -23,12 +23,7 @@ function generateUUID() {
 
 async function storeVerificationData(token, data) {
     console.log(`Storing verification data for token: ${token}, data:`, data);
-    await redisClient.set(`verification:${token}`, JSON.stringify(data), 'EX', 300); // 5 minutes expiration
-
-    // Set a timer to delete the verification data after 5 minutes
-    setTimeout(() => {
-        deleteVerificationData(token);
-    }, 5 * 60 * 1000); // 5 minutes
+    await redisClient.set(`verification:${token}`, JSON.stringify(data), 'EX', 300); // Use Redis expiration as fallback
 }
 
 async function retrieveVerificationData(token) {
@@ -61,6 +56,22 @@ async function retrieveVerificationDataByDiscordId(discordId) {
 async function deleteVerificationData(token) {
     await redisClient.del(`verification:${token}`);
     console.log(`Verification data for token ${token} has been deleted.`);
+}
+
+async function deleteSession(req) {
+    const token = req.session.token; // Retrieve token for verification
+    req.session.destroy(async (err) => {
+        if (err) {
+            console.error("Error destroying session:", err);
+            throw err;
+        }
+
+        if (token) {
+            await deleteVerificationData(token);
+        }
+
+        console.log('Session and verification data deleted.');
+    });
 }
 
 async function storeUserData(username, data, req) {
@@ -141,24 +152,6 @@ async function retrieveUserData(username) {
     }
 }
 
-async function getAllUserData() {
-    try {
-        const keys = await redisClient.keys('user:*');
-        const allUserData = [];
-        for (const key of keys) {
-            const data = await redisClient.get(key);
-            if (data) {
-                allUserData.push(JSON.parse(data));
-            }
-        }
-        console.log('Retrieved all user data:', allUserData);
-        return allUserData;
-    } catch (err) {
-        console.error('Error retrieving all user data:', err);
-        return [];
-    }
-}
-
 function setupSession() {
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -169,17 +162,10 @@ function setupSession() {
         saveUninitialized: false,
         cookie: {
             secure: isProduction,
-            maxAge: 5 * 60 * 1000, // 5 minutes
+            maxAge: 5 * 60 * 1000, // 5 minutes expiration for session
             sameSite: isProduction ? 'None' : 'Lax'
         }
     });
-}
-
-function validateSession(req, res, next) {
-    if (!req.session.userId) {
-        return res.status(401).json({ message: 'Unauthorized: No session available' });
-    }
-    next();
 }
 
 module.exports = {
@@ -188,9 +174,8 @@ module.exports = {
     retrieveVerificationData,
     retrieveVerificationDataByDiscordId,
     deleteVerificationData,
+    deleteSession,
     storeUserData,
     retrieveUserData,
-    getAllUserData,
-    setupSession,
-    validateSession
+    setupSession
 };
