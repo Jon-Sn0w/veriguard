@@ -95,20 +95,15 @@ async function assignRolesBasedOnValue(userAddress, nftAddress, totalNFTCount) {
 
 async function calculateTotalValue(userAddress, nftAddress, nftContract, verificationContract, totalNFTCount, requiredValue) {
     let totalValue = 0;
-    let foundNFTs = 0;
+    let tokensProcessed = 0;
 
     try {
-        for (let tokenId = 0; tokenId < 10000; tokenId++) {
-            if (foundNFTs >= totalNFTCount) {
-                console.log(`Found all ${totalNFTCount} NFTs. Stopping search.`);
-                break;
-            }
-
+        for (let tokenId = 0; tokensProcessed < totalNFTCount && tokenId < 10000; tokenId++) {
             try {
                 const balance = await nftContract.balanceOf(userAddress, tokenId);
 
                 if (balance > 0) {
-                    foundNFTs += balance;
+                    tokensProcessed += 1;  // Count each unique token ID found, not balance
                     const tokenValue = await verificationContract.nftValueMappings(nftAddress, tokenId);
                     console.log(`User holds ${balance} of Token ID ${tokenId} with value ${tokenValue}`);
 
@@ -120,16 +115,26 @@ async function calculateTotalValue(userAddress, nftAddress, nftContract, verific
                         console.log(`Required value ${requiredValue} met or exceeded. Stopping calculation.`);
                         return { totalUserValue: totalValue, isEligible: true };
                     }
+
+                    // After processing the token, check if we've found all expected tokens
+                    if (tokensProcessed >= totalNFTCount) {
+                        console.log(`All tokens processed. Final value: ${totalValue}`);
+                        return { totalUserValue: totalValue, isEligible: totalValue >= requiredValue };
+                    }
                 }
             } catch (innerError) {
-                console.error(`Error retrieving balance or value for token ID ${tokenId}:`, innerError);
+                if (!innerError.message.includes('nonexistent token')) {
+                    console.error(`Error retrieving balance or value for token ID ${tokenId}:`, innerError);
+                }
             }
         }
+
+        console.log(`Search complete. Final value: ${totalValue}`);
+        return { totalUserValue: totalValue, isEligible: totalValue >= requiredValue };
     } catch (error) {
         console.error(`Error calculating total value for NFT address ${nftAddress}:`, error);
+        return { totalUserValue: totalValue, isEligible: false };
     }
-
-    return { totalUserValue: totalValue, isEligible: totalValue >= requiredValue };
 }
 
 module.exports = {
