@@ -1,15 +1,9 @@
 document.getElementById('connectWalletButton').addEventListener('click', async () => {
     await connectWallet();
     // Additional verification logic after wallet connection
-    const walletAddress = ethereum.selectedAddress;
+    const walletAddress = await ethereum.request({ method: 'eth_accounts' }).then(accounts => accounts[0]);
     const token = getQueryParam('token');
-
-    // Get the network selection from the dropdown
-    const networkSelect = document.getElementById('network');
-    const network = networkSelect.value;
-
-    // Store the network in session storage
-    sessionStorage.setItem('network', network);
+    const chain = getQueryParam('chain')?.toLowerCase(); // Get chain from URL
 
     try {
         const signature = await signMessage(walletAddress);
@@ -24,7 +18,7 @@ document.getElementById('connectWalletButton').addEventListener('click', async (
                 'X-Requested-With': 'XMLHttpRequest'
             },
             credentials: 'include',
-            body: JSON.stringify({ walletAddress, signature, token, network }) // Include network in request body
+            body: JSON.stringify({ walletAddress, signature, token, chain })
         });
 
         console.log('Response status:', response.status);
@@ -81,44 +75,4 @@ async function signMessage(walletAddress) {
 function getQueryParam(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
-}
-
-async function connectWallet() {
-    try {
-        // Check if MetaMask is installed
-        if (!window.ethereum) {
-            const messageContainer = document.getElementById('messageContainer');
-            messageContainer.innerHTML = `
-                <div class="bg-red-600 text-white p-4 rounded shadow-md max-w-xl mx-auto mt-4">
-                    MetaMask is not installed. Please install MetaMask and try again.
-                </div>
-            `;
-            return;
-        }
-
-        // Request account access
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-        // Display success message
-        const walletAddress = ethereum.selectedAddress;
-        const messageContainer = document.getElementById('messageContainer');
-        messageContainer.innerHTML = `
-            <div class="bg-black text-white p-4 rounded shadow-md max-w-xl mx-auto mt-4">
-                Wallet connected successfully! Address: ${truncateAddress(walletAddress)}
-            </div>
-        `;
-    } catch (error) {
-        console.error('Failed to connect wallet:', error);
-        const messageContainer = document.getElementById('messageContainer');
-        messageContainer.innerHTML = `
-            <div class="bg-red-600 text-white p-4 rounded shadow-md max-w-xl mx-auto mt-4">
-                Failed to connect wallet. Please try again.
-            </div>
-        `;
-    }
-}
-
-// Function to truncate a wallet address for display purposes
-function truncateAddress(address) {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 }

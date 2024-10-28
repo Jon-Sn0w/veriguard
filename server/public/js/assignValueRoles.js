@@ -1,142 +1,197 @@
 const { ethers } = require('ethers');
 require('dotenv').config();
 
-const nftContractAbi = [
-    {
-        "constant": true,
-        "inputs": [
-            { "name": "account", "type": "address" },
-            { "name": "id", "type": "uint256" }
-        ],
-        "name": "balanceOf",
-        "outputs": [{ "name": "", "type": "uint256" }],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    }
+const ERC1155_ABI = [
+    "function balanceOf(address account, uint256 id) view returns (uint256)",
+    "function balanceOfBatch(address[] accounts, uint256[] ids) view returns (uint256[])"
 ];
 
-const verificationContractAbi = [
-    {
-        "inputs": [
-            { "internalType": "address", "name": "nftAddress", "type": "address" },
-            { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
-        ],
-        "name": "nftValueRoles",
-        "outputs": [
-            { "internalType": "string", "name": "roleName", "type": "string" },
-            { "internalType": "uint256", "name": "requiredValue", "type": "uint256" },
-            { "internalType": "address", "name": "registrant", "type": "address" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            { "internalType": "address", "name": "nftAddress", "type": "address" },
-            { "internalType": "uint256", "name": "tokenId", "type": "uint256" }
-        ],
-        "name": "nftValueMappings",
-        "outputs": [
-            { "internalType": "uint256", "name": "", "type": "uint256" }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    }
+const ERC721_ABI = [
+    "function balanceOf(address owner) view returns (uint256)",
+    "function ownerOf(uint256 tokenId) view returns (address)",
+    "function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)"
 ];
 
-async function assignRolesBasedOnValue(userAddress, nftAddress, totalNFTCount) {
+async function getTokenBalances(nftContract, userAddress, isERC1155, expectedCount, nftVerificationContract, nftAddress) {
+    let foundTokens = [];
+    
     try {
-        const rpcUrl = process.env.SONGBIRD_RPC_URL;
-        const verificationContractAddress = process.env.SONGBIRD_CONTRACT_ADDRESS;
-        
-        if (!rpcUrl || !verificationContractAddress) {
-            console.error('RPC URL or contract address is not defined. Please check your .env file.');
-            return { eligible: false, roleName: null, hasValueRole: false };
+        // First check if this is a mapped NFT
+        const nftMapping = await nftVerificationContract.nftMappings(nftAddress);
+        if (!nftMapping.isERC1155 && isERC1155) {
+            console.log('WARNING: Contract type mismatch - registered as non-ERC1155 but detected as ERC1155');
+            return foundTokens;
         }
 
-        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-        const verificationContract = new ethers.Contract(verificationContractAddress, verificationContractAbi, provider);
-        const nftContract = new ethers.Contract(nftAddress, nftContractAbi, provider);
+        if (isERC1155) {
+            console.log(`Checking ERC1155 balances for ${expectedCount} tokens`);
+            // For ERC1155, try batch balance check first
+            try {
+                // Create arrays for batch check
+                const tokenIds = Array.from({ length: expectedCount }, (_, i) => i + 1);
+                const accounts = Array(expectedCount).fill(userAddress);
+                
+                const balances = await nftContract.balanceOfBatch(accounts, tokenIds);
+                
+                for (let i = 0; i < balances.length; i++) {
+                    if (balances[i].gt(0)) {
+                        foundTokens.push({
+                            tokenId: tokenIds[i],
+                            balance: balances[i].toNumber()
+                        });
+                        console.log(`Found ERC1155 token ${tokenIds[i]} with balance ${balances[i].toString()}`);
+                    }
+                }
+            } catch (batchError) {
+                console.log('Batch balance check failed, falling back to individual checks');
+                // Fall back to individual balance checks
+                for (let tokenId = 1; tokenId <= expectedCount; tokenId++) {
+                    try {
+                        const balance = await nftContract.balanceOf(userAddress, tokenId);
+                        if (balance.gt(0)) {
+                            foundTokens.push({
+                                tokenId,
+                                balance: balance.toNumber()
+                            });
+                            console.log(`Found ERC1155 token ${tokenId} with balance ${balance.toString()}`);
+                        }
+                    } catch (error) {
+                        continue;
+                    }
+                }
+            }
+        } else {
+            // ERC721 handling
+            let foundCount = 0;
+            
+            // Try enumeration first
+            try {
+                const balance = await nftContract.balanceOf(userAddress);
+                for (let i = 0; i < Math.min(balance.toNumber(), expectedCount); i++) {
+                    try {
+                        const tokenId = await nftContract.tokenOfOwnerByIndex(userAddress, i);
+                        foundTokens.push({
+                            tokenId: tokenId.toNumber(),
+                            balance: 1
+                        });
+                        foundCount++;
+                        console.log(`Found ERC721 token ${tokenId} via enumeration`);
+                    } catch (enumError) {
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.log('ERC721 enumeration not supported');
+            }
+            
+            // If enumeration didn't find everything, try sequential checks
+            if (foundCount < expectedCount) {
+                for (let tokenId = 1; tokenId <= 100 && foundCount < expectedCount; tokenId++) {
+                    try {
+                        const owner = await nftContract.ownerOf(tokenId);
+                        if (owner.toLowerCase() === userAddress.toLowerCase()) {
+                            foundTokens.push({
+                                tokenId,
+                                balance: 1
+                            });
+                            foundCount++;
+                            console.log(`Found ERC721 token ${tokenId} via ownerOf`);
+                        }
+                    } catch {
+                        continue;
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error getting token balances:', error);
+    }
+    
+    return foundTokens;
+}
 
+async function assignRolesBasedOnValue(nftVerificationContract, userAddress, nftAddress, count) {
+    try {
+        console.log(`Checking NFT mappings for address: ${nftAddress}`);
+        const nftMapping = await nftVerificationContract.nftMappings(nftAddress);
+        if (!nftMapping || !nftMapping.nftAddress) {
+            console.log(`NFT ${nftAddress} not mapped in contract`);
+            return { hasValueRole: false };
+        }
+
+        const mappedTokenId = nftMapping.tokenId;
+        console.log(`Mapped token ID: ${mappedTokenId}, Is ERC1155: ${nftMapping.isERC1155}`);
+
+        // Get value role configuration
         console.log(`Fetching value roles for NFT Address: ${nftAddress}`);
-        let valueRoles;
         try {
-            valueRoles = await verificationContract.nftValueRoles(nftAddress, 0);
+            const valueRoles = await nftVerificationContract.nftValueRoles(nftAddress, mappedTokenId);
+            if (!valueRoles || !valueRoles.roleName) {
+                console.log(`No value roles configured for NFT ${nftAddress}`);
+                return { hasValueRole: false };
+            }
+
+            console.log(`Role Name: ${valueRoles.roleName}`);
+            console.log(`Required Value: ${valueRoles.requiredValue}`);
+
+            // Initialize NFT contract
+            const nftContract = new ethers.Contract(
+                nftAddress,
+                nftMapping.isERC1155 ? ERC1155_ABI : ERC721_ABI,
+                nftVerificationContract.provider
+            );
+
+            // Get owned tokens
+            const ownedTokens = await getTokenBalances(
+                nftContract, 
+                userAddress, 
+                nftMapping.isERC1155, 
+                count,
+                nftVerificationContract,
+                nftAddress
+            );
+            console.log(`Found ${ownedTokens.length} owned tokens`);
+
+            // Calculate total value
+            let totalValue = 0;
+            for (const token of ownedTokens) {
+                try {
+                    const tokenValue = await nftVerificationContract.nftValueMappings(nftAddress, token.tokenId);
+                    if (tokenValue.gt(0)) {
+                        const value = tokenValue.mul(token.balance).toNumber();
+                        totalValue += value;
+                        console.log(`Token ${token.tokenId}: Count=${token.balance}, Value=${tokenValue}, Total=${value}`);
+                    }
+                } catch (error) {
+                    console.log(`No value mapping for token ${token.tokenId}`);
+                    continue;
+                }
+            }
+
+            console.log(`Final total value: ${totalValue}, Required: ${valueRoles.requiredValue}`);
+
+            return {
+                hasValueRole: true,
+                roleName: valueRoles.roleName,
+                requiredValue: valueRoles.requiredValue.toNumber(),
+                totalValue,
+                isEligible: totalValue >= valueRoles.requiredValue.toNumber()
+            };
+
         } catch (error) {
             if (error.message.includes('execution reverted')) {
-                console.log(`No value-based roles defined for NFT ${nftAddress}`);
-                return { eligible: false, roleName: null, hasValueRole: false };
+                console.log('No value roles registered for this NFT');
+                return { hasValueRole: false };
             }
             throw error;
         }
 
-        const roleName = valueRoles.roleName;
-        const requiredValue = valueRoles.requiredValue;
-        console.log(`Role Name: ${roleName}`);
-        console.log(`Required Value: ${requiredValue}`);
-
-        const { totalUserValue, isEligible } = await calculateTotalValue(userAddress, nftAddress, nftContract, verificationContract, totalNFTCount, requiredValue);
-
-        console.log(`Total value of NFTs held by user ${userAddress}: ${totalUserValue}`);
-
-        if (isEligible) {
-            console.log(`User meets the required value for role: ${roleName}`);
-            return { eligible: true, roleName, hasValueRole: true };
-        } else {
-            console.log(`User does not meet the required value for role: ${roleName}`);
-            return { eligible: false, roleName, hasValueRole: true };
-        }
     } catch (error) {
-        console.error('Error fetching value-based roles from the contract:', error);
-        return { eligible: false, roleName: null, hasValueRole: false };
-    }
-}
-
-async function calculateTotalValue(userAddress, nftAddress, nftContract, verificationContract, totalNFTCount, requiredValue) {
-    let totalValue = 0;
-    let tokensProcessed = 0;
-
-    try {
-        for (let tokenId = 0; tokensProcessed < totalNFTCount && tokenId < 10000; tokenId++) {
-            try {
-                const balance = await nftContract.balanceOf(userAddress, tokenId);
-
-                if (balance > 0) {
-                    tokensProcessed += 1;  // Count each unique token ID found, not balance
-                    const tokenValue = await verificationContract.nftValueMappings(nftAddress, tokenId);
-                    console.log(`User holds ${balance} of Token ID ${tokenId} with value ${tokenValue}`);
-
-                    const calculatedValue = balance * tokenValue;
-                    totalValue += calculatedValue;
-                    console.log(`Calculated value for Token ID ${tokenId}: ${calculatedValue}, Running Total: ${totalValue}`);
-
-                    if (totalValue >= requiredValue) {
-                        console.log(`Required value ${requiredValue} met or exceeded. Stopping calculation.`);
-                        return { totalUserValue: totalValue, isEligible: true };
-                    }
-
-                    // After processing the token, check if we've found all expected tokens
-                    if (tokensProcessed >= totalNFTCount) {
-                        console.log(`All tokens processed. Final value: ${totalValue}`);
-                        return { totalUserValue: totalValue, isEligible: totalValue >= requiredValue };
-                    }
-                }
-            } catch (innerError) {
-                if (!innerError.message.includes('nonexistent token')) {
-                    console.error(`Error retrieving balance or value for token ID ${tokenId}:`, innerError);
-                }
-            }
-        }
-
-        console.log(`Search complete. Final value: ${totalValue}`);
-        return { totalUserValue: totalValue, isEligible: totalValue >= requiredValue };
-    } catch (error) {
-        console.error(`Error calculating total value for NFT address ${nftAddress}:`, error);
-        return { totalUserValue: totalValue, isEligible: false };
+        console.error('Error checking value roles:', error);
+        return { hasValueRole: false, error: error.message };
     }
 }
 
 module.exports = {
-    assignRolesBasedOnValue,
+    assignRolesBasedOnValue
 };

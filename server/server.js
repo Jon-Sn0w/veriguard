@@ -70,21 +70,20 @@ app.get('/verify', async (req, res) => {
 app.post('/api/wallet-connect', async (req, res) => {
     console.log('Session at start of /api/wallet-connect:', req.session);
 
-    const { walletAddress, signature, token, network } = req.body; // Ensure `network` is passed
-    console.log('Received data:', { walletAddress, signature, token, network });
+    const { walletAddress, signature, token, chain } = req.body;
+    console.log('Received data:', { walletAddress, signature, token, chain });
 
     let rpcUrl, contractAddress;
 
-    // Determine network settings based on the provided network option
-    if (network === 'songbird') {
+    if (chain === 'songbird') {
         rpcUrl = process.env.SONGBIRD_RPC_URL;
         contractAddress = process.env.SONGBIRD_CONTRACT_ADDRESS;
-    } else if (network === 'flare') {
+    } else if (chain === 'flare') {
         rpcUrl = process.env.FLARE_RPC_URL;
         contractAddress = process.env.FLARE_CONTRACT_ADDRESS;
     } else {
-        console.error('Invalid network specified:', network);
-        return res.status(400).json({ message: 'Invalid network specified.' });
+        console.error('Invalid chain specified:', chain);
+        return res.status(400).json({ message: 'Invalid chain specified.' });
     }
 
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
