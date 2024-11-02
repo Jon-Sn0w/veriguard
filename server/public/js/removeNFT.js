@@ -46,9 +46,15 @@ async function getContractAddress(env) {
     }
 }
 
+async function getProvider(env, network) {
+    const rpcUrl = network === 'songbird' ? env.SONGBIRD_RPC_URL : env.FLARE_RPC_URL;
+    return new ethers.providers.JsonRpcProvider(rpcUrl);
+}
+
 async function submitRemoveNFT(event) {
     event.preventDefault();
     const nftAddress = document.getElementById('nftAddress').value;
+    const network = document.getElementById('network').value;
 
     try {
         const account = await connectWallet();
@@ -57,7 +63,6 @@ async function submitRemoveNFT(event) {
         // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
-
         const contractAddress = await getContractAddress(env);
 
         if (!contractAddress) {
@@ -68,16 +73,42 @@ async function submitRemoveNFT(event) {
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
 
-        // Initialize ethers
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
-        const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
+        // Get read-only provider for contract verification
+        const rpcProvider = await getProvider(env, network);
+        const readOnlyContract = new ethers.Contract(contractAddress, abi, rpcProvider);
 
-        // Remove the NFT
-        const tx = await nftVerificationContract.removeNFT(nftAddress);
-        await tx.wait();
+        // Verify NFT exists before attempting removal
+        try {
+            console.log('Verifying NFT before removal:', {
+                network,
+                contractAddress,
+                nftAddress
+            });
 
-        alert('NFT removed successfully!');
+            // Initialize ethers for transaction
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
+
+            console.log('Submitting removeNFT transaction...');
+            const tx = await nftVerificationContract.removeNFT(nftAddress);
+            console.log('Transaction submitted:', tx.hash);
+            const receipt = await tx.wait();
+            console.log('Transaction confirmed:', receipt);
+
+            // Look for NFTUnmapped event
+            const nftUnmappedEvent = receipt.events?.find(event => event.event === 'NFTUnmapped');
+            if (nftUnmappedEvent) {
+                alert(`NFT successfully removed!\nAddress: ${nftUnmappedEvent.args.nftAddress}`);
+            } else {
+                alert('NFT removed successfully!');
+            }
+        } catch (error) {
+            if (error.message.includes('revert')) {
+                throw new Error('This NFT cannot be removed or does not exist in the contract');
+            }
+            throw error;
+        }
     } catch (error) {
         console.error('Error removing NFT:', error);
         alert(`Error removing NFT: ${error.message}`);
@@ -91,16 +122,22 @@ function getQueryParam(param) {
 
 window.addEventListener('load', () => {
     const nftAddress = getQueryParam('nftAddress');
-
     if (nftAddress) {
         document.getElementById('nftAddress').value = nftAddress;
     }
 });
 
-// Add event listener for the wallet connection button
 document.addEventListener('DOMContentLoaded', () => {
     const walletButton = document.getElementById('walletButton');
     if (walletButton) {
         walletButton.addEventListener('click', connectWallet);
+    }
+
+    // Add network change handler
+    const networkSelect = document.getElementById('network');
+    if (networkSelect) {
+        networkSelect.addEventListener('change', () => {
+            console.log('Network changed to:', networkSelect.value);
+        });
     }
 });

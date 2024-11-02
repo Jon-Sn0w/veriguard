@@ -46,40 +46,62 @@ async function getContractAddress(env) {
     }
 }
 
+async function getProvider(env, network) {
+    const rpcUrl = network === 'songbird' ? env.SONGBIRD_RPC_URL : env.FLARE_RPC_URL;
+    return new ethers.providers.JsonRpcProvider(rpcUrl);
+}
+
 async function submitRegisterValueRole(event) {
     event.preventDefault();
     const nftAddress = document.getElementById('nftAddress').value;
     const roleName = document.getElementById('roleName').value;
     const requiredNFTValue = document.getElementById('requiredNFTValue').value;
+    const network = document.getElementById('network').value;
 
     try {
         const account = await connectWallet();
         if (!account) return;
 
-        // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
-
         const contractAddress = await getContractAddress(env);
 
         if (!contractAddress) {
             throw new Error('Contract address not found for the selected network.');
         }
 
-        // Fetch the ABI from the server
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
 
-        // Initialize ethers
+        // Get read-only provider for initial checks
+        const rpcProvider = await getProvider(env, network);
+        const readOnlyContract = new ethers.Contract(contractAddress, abi, rpcProvider);
+
+        // Initialize ethers for transaction
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
 
-        // Register the value-based role
-        const roleTx = await nftVerificationContract.registerValueRole(nftAddress, roleName, requiredNFTValue);
-        await roleTx.wait();
+        console.log('Registering value-based role:', {
+            network,
+            contractAddress,
+            nftAddress,
+            roleName,
+            requiredNFTValue
+        });
 
-        alert('Value-based role registered successfully!');
+        const tx = await nftVerificationContract.registerValueRole(nftAddress, roleName, requiredNFTValue);
+        console.log('Transaction submitted:', tx.hash);
+        const receipt = await tx.wait();
+        console.log('Transaction confirmed:', receipt);
+
+        // Look for ValueRoleRegistered event
+        const valueRoleRegisteredEvent = receipt.events?.find(event => event.event === 'ValueRoleRegistered');
+        if (valueRoleRegisteredEvent) {
+            alert(`Value-based role registered successfully!\nNFT: ${valueRoleRegisteredEvent.args.nftAddress}\nRole: ${valueRoleRegisteredEvent.args.roleName}\nRequired Value: ${valueRoleRegisteredEvent.args.requiredValue}`);
+        } else {
+            alert('Value-based role registered successfully!');
+        }
     } catch (error) {
         console.error('Error registering value-based role:', error);
         alert(`Error registering value-based role: ${error.message}`);
@@ -91,36 +113,52 @@ async function submitMapNFTValue(event) {
     const nftAddress = document.getElementById('mapNftAddress').value;
     const tokenId = document.getElementById('mapTokenId').value;
     const value = document.getElementById('mapValue').value;
+    const network = document.getElementById('network').value;
 
     try {
         const account = await connectWallet();
         if (!account) return;
 
-        // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
-
         const contractAddress = await getContractAddress(env);
 
         if (!contractAddress) {
             throw new Error('Contract address not found for the selected network.');
         }
 
-        // Fetch the ABI from the server
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
 
-        // Initialize ethers
+        // Get read-only provider for initial checks
+        const rpcProvider = await getProvider(env, network);
+        const readOnlyContract = new ethers.Contract(contractAddress, abi, rpcProvider);
+
+        // Initialize ethers for transaction
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
 
-        // Map the NFT value
-        const mapTx = await nftVerificationContract.mapNFTValue(nftAddress, tokenId, value);
-        await mapTx.wait();
-        console.log('NFT value mapped:', mapTx);
+        console.log('Mapping NFT value:', {
+            network,
+            contractAddress,
+            nftAddress,
+            tokenId,
+            value
+        });
 
-        alert('NFT value mapped successfully!');
+        const tx = await nftVerificationContract.mapNFTValue(nftAddress, tokenId, value);
+        console.log('Transaction submitted:', tx.hash);
+        const receipt = await tx.wait();
+        console.log('Transaction confirmed:', receipt);
+
+        // Look for NFTValueMapped event
+        const nftValueMappedEvent = receipt.events?.find(event => event.event === 'NFTValueMapped');
+        if (nftValueMappedEvent) {
+            alert(`NFT value mapped successfully!\nNFT: ${nftValueMappedEvent.args.nftAddress}\nToken ID: ${nftValueMappedEvent.args.tokenId}\nValue: ${nftValueMappedEvent.args.value}`);
+        } else {
+            alert('NFT value mapped successfully!');
+        }
     } catch (error) {
         console.error('Error mapping NFT value:', error);
         alert(`Error mapping NFT value: ${error.message}`);
@@ -131,35 +169,51 @@ async function submitUnregisterValueRole(event) {
     event.preventDefault();
     const nftAddress = document.getElementById('unregisterNftAddress').value;
     const roleName = document.getElementById('unregisterRoleName').value;
+    const network = document.getElementById('network').value;
 
     try {
         const account = await connectWallet();
         if (!account) return;
 
-        // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
-
         const contractAddress = await getContractAddress(env);
 
         if (!contractAddress) {
             throw new Error('Contract address not found for the selected network.');
         }
 
-        // Fetch the ABI from the server
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
 
-        // Initialize ethers
+        // Get read-only provider for initial checks
+        const rpcProvider = await getProvider(env, network);
+        const readOnlyContract = new ethers.Contract(contractAddress, abi, rpcProvider);
+
+        // Initialize ethers for transaction
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
         const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
 
-        // Unregister the value-based role
-        const tx = await nftVerificationContract.unregisterValueRole(nftAddress, roleName);
-        await tx.wait();
+        console.log('Unregistering value-based role:', {
+            network,
+            contractAddress,
+            nftAddress,
+            roleName
+        });
 
-        alert('Value-based role unregistered successfully!');
+        const tx = await nftVerificationContract.unregisterValueRole(nftAddress, roleName);
+        console.log('Transaction submitted:', tx.hash);
+        const receipt = await tx.wait();
+        console.log('Transaction confirmed:', receipt);
+
+        // Look for ValueRoleUnregistered event
+        const valueRoleUnregisteredEvent = receipt.events?.find(event => event.event === 'ValueRoleUnregistered');
+        if (valueRoleUnregisteredEvent) {
+            alert(`Value-based role unregistered successfully!\nNFT: ${valueRoleUnregisteredEvent.args.nftAddress}\nRole: ${valueRoleUnregisteredEvent.args.roleName}`);
+        } else {
+            alert('Value-based role unregistered successfully!');
+        }
     } catch (error) {
         console.error('Error unregistering value-based role:', error);
         alert(`Error unregistering value-based role: ${error.message}`);
@@ -172,7 +226,7 @@ function getQueryParam(param) {
 }
 
 window.addEventListener('load', () => {
-    // Existing logic for `registerValueRole`
+    // Handle registerValueRole params
     const nftAddress = getQueryParam('nftAddress');
     const roleName = getQueryParam('roleName');
     const requiredNFTValue = getQueryParam('requiredNFTValue');
@@ -187,7 +241,7 @@ window.addEventListener('load', () => {
         document.getElementById('requiredNFTValue').value = requiredNFTValue;
     }
 
-    // Logic for `mapNFTValue`
+    // Handle mapNFTValue params
     const mapNftAddress = getQueryParam('mapNftAddress');
     const mapTokenId = getQueryParam('mapTokenId');
     const mapValue = getQueryParam('mapValue');
@@ -203,10 +257,17 @@ window.addEventListener('load', () => {
     }
 });
 
-// Add event listener for the wallet connection button
 document.addEventListener('DOMContentLoaded', () => {
     const walletButton = document.getElementById('walletButton');
     if (walletButton) {
         walletButton.addEventListener('click', connectWallet);
+    }
+
+    // Add network change handler
+    const networkSelect = document.getElementById('network');
+    if (networkSelect) {
+        networkSelect.addEventListener('change', () => {
+            console.log('Network changed to:', networkSelect.value);
+        });
     }
 });

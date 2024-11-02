@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.0/dist/ethers.umd.min.js"></script>
 </head>
 <body class="bg-animated-gradient text-white min-h-screen">
-    <!-- Navigation Bar -->
+    <!-- Navigation Bar remains unchanged -->
     <nav class="bg-gray-800 p-4">
         <div class="container mx-auto flex justify-between items-center">
             <div class="text-white font-bold text-xl">Discord On Chain Verification</div>
@@ -32,48 +32,176 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-4 py-8 max-w-lg text-center">
+    <div class="container mx-auto px-4 py-8 max-w-2xl text-center">
         <h1 class="text-4xl font-bold mb-6 neon-text">Add NFT</h1>
         
         <!-- Network Selection -->
-        <label for="network" class="block text-lg mb-2">Select Network:</label>
-        <select id="network" name="network" class="block w-full text-black p-2 rounded mb-4" required>
-            <option value="songbird">Songbird</option>
-            <option value="flare">Flare</option>
-        </select>
+        <div class="bg-gray-800 p-6 rounded-lg mb-6">
+            <label for="network" class="block text-lg mb-2">Select Network:</label>
+            <select id="network" name="network" class="block w-full text-black p-2 rounded mb-4" required onchange="updatePaymentDisplay()">
+                <option value="songbird">Songbird</option>
+                <option value="flare">Flare</option>
+            </select>
+        </div>
+
+        <!-- Payment Display -->
+        <div class="bg-gray-800 p-6 rounded-lg mb-6">
+            <h2 class="text-xl font-bold mb-4">Registration Cost</h2>
+            <div id="paymentDisplay" class="text-2xl font-bold text-yellow-400">
+                Loading...
+            </div>
+            <div id="paymentToken" class="text-sm text-gray-300 mt-2">
+                <!-- Token name will be inserted here -->
+            </div>
+        </div>
 
         <!-- Wallet Connection Button -->
         <button id="walletButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300 ease-in-out transform hover:scale-110">
             Connect Wallet
         </button>
         
-        <!-- Black Message Container -->
+        <!-- Message Container -->
         <div id="messageContainer" class="bg-black bg-opacity-80 text-white p-4 rounded-lg shadow-lg mb-6 hidden">
             <p id="walletStatus" class="text-sm mb-2"></p>
             <p id="walletAddress" class="text-sm font-mono"></p>
         </div>
 
         <!-- Add NFT Form -->
-        <form id="nftForm" onsubmit="submitAddNFT(event)" class="space-y-4">
-            <label for="nftAddress" class="block text-lg">NFT Address:</label>
-            <input type="text" id="nftAddress" name="nftAddress" class="block w-full text-black p-2 rounded" required>
+        <form id="nftForm" onsubmit="submitAddNFT(event)" class="space-y-6">
+            <!-- NFT Type Selection -->
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">NFT Type</h2>
+                <div class="flex justify-center gap-4">
+                    <button type="button" 
+                            id="erc721Button" 
+                            onclick="selectNFTType('721')"
+                            class="flex-1 py-3 px-4 rounded-lg border-2 border-blue-500 hover:bg-blue-500 transition-colors duration-300">
+                        ERC721
+                    </button>
+                    <button type="button" 
+                            id="erc1155Button" 
+                            onclick="selectNFTType('1155')"
+                            class="flex-1 py-3 px-4 rounded-lg border-2 border-purple-500 hover:bg-purple-500 transition-colors duration-300">
+                        ERC1155
+                    </button>
+                </div>
+                <input type="hidden" id="isERC1155" name="isERC1155" value="false">
+                <p id="nftTypeDisplay" class="mt-2 text-sm text-gray-300"></p>
+            </div>
+
+            <!-- NFT Address -->
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <label for="nftAddress" class="block text-lg mb-2">NFT Contract Address:</label>
+                <input type="text" 
+                       id="nftAddress" 
+                       name="nftAddress" 
+                       class="block w-full text-black p-2 rounded" 
+                       placeholder="0x..." 
+                       required>
+            </div>
             
-            <label for="tokenId" class="block text-lg">Token ID (optional):</label>
-            <input type="text" id="tokenId" name="tokenId" class="block w-full text-black p-2 rounded">
-            <p class="text-white-400 text-sm">Use Token ID 0 to register the entire collection.</p>
+            <!-- Token ID Selection -->
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Token ID Registration</h2>
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="radio" 
+                               id="entireCollection" 
+                               name="tokenIdType" 
+                               value="entire" 
+                               checked 
+                               onchange="updateTokenIdField(false)">
+                        <label for="entireCollection">
+                            Register Entire Collection (Token ID: 0)
+                        </label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="radio" 
+                               id="specificToken" 
+                               name="tokenIdType" 
+                               value="specific" 
+                               onchange="updateTokenIdField(true)">
+                        <label for="specificToken">
+                            Register Specific Token ID
+                        </label>
+                    </div>
+                    <input type="text" 
+                           id="tokenId" 
+                           name="tokenId" 
+                           class="block w-full text-black p-2 rounded hidden" 
+                           placeholder="Enter specific token ID">
+                </div>
+            </div>
             
-            <label for="isERC1155" class="block text-lg">Is ERC1155:</label>
-            <input type="checkbox" id="isERC1155" name="isERC1155" class="block text-black p-2 rounded">
-            
-            <button type="button" onclick="approveToken()" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-110">
-                Approve Payment
-            </button>
-            
-            <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-110">
-                Add NFT
-            </button>
+            <!-- Action Buttons -->
+            <div class="space-y-4">
+                <button type="button" 
+                        onclick="approveToken()" 
+                        class="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105">
+                    Approve Payment
+                </button>
+                
+                <button type="submit" 
+                        class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-3 px-4 rounded transition duration-300 ease-in-out transform hover:scale-105">
+                    Add NFT
+                </button>
+            </div>
         </form>
     </div>
+    
+    <script>
+    // Updated functions to handle the NFT type selection with correct contract parameters
+    function selectNFTType(type) {
+        const erc721Button = document.getElementById('erc721Button');
+        const erc1155Button = document.getElementById('erc1155Button');
+        const isERC1155Input = document.getElementById('isERC1155');
+        const nftTypeDisplay = document.getElementById('nftTypeDisplay');
+        
+        if (type === '721') {
+            // ERC721 selected
+            erc721Button.classList.add('bg-blue-500');
+            erc1155Button.classList.remove('bg-purple-500');
+            isERC1155Input.value = false; // Explicitly false for ERC721
+            nftTypeDisplay.textContent = 'Selected: ERC721 Standard';
+        } else {
+            // ERC1155 selected
+            erc1155Button.classList.add('bg-purple-500');
+            erc721Button.classList.remove('bg-blue-500');
+            isERC1155Input.value = true; // Explicitly true for ERC1155
+            nftTypeDisplay.textContent = 'Selected: ERC1155 Standard';
+        }
+    }
+
+    function updateTokenIdField(show) {
+        const tokenIdField = document.getElementById('tokenId');
+        if (show) {
+            tokenIdField.classList.remove('hidden');
+            tokenIdField.value = '';
+        } else {
+            tokenIdField.classList.add('hidden');
+            tokenIdField.value = '0';
+        }
+    }
+
+    // Initialize the form
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set initial token ID to 0
+        document.getElementById('tokenId').value = '0';
+        
+        // Initialize NFT type selection (default to ERC721)
+        selectNFTType('721');
+
+        // Initialize payment display
+        updatePaymentDisplay();
+
+        // Handle URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const isERC1155Param = urlParams.get('isERC1155') === 'true';
+        if (isERC1155Param) {
+            selectNFTType('1155');
+        }
+    });
+    </script>
     
     <script src="js/connectWallet.js"></script>
     <script src="js/addNFT.js"></script>

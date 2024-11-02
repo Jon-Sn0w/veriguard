@@ -4,9 +4,11 @@ const assignValueRoles = require('./server/public/js/assignValueRoles');
 const { assignRolesBasedOnValue } = require('./server/public/js/assignValueRoles');
 const sessionManager = require('./server/sessionManager');
 const userDataManager = require('./server/userDataManager');
+const { verifyNFTOwnership, verifyERC721Ownership } = require('./server/public/js/verification');
 const Redis = require('ioredis');
 require('dotenv').config();
 
+// Initialize Redis
 const redisClient = new Redis({
     host: process.env.REDIS_HOST,
     port: process.env.REDIS_PORT,
@@ -17,6 +19,7 @@ redisClient.on('connect', () => {
     console.log('Connected to Redis');
 });
 
+// Initialize Discord client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -28,7 +31,7 @@ const client = new Client({
     ]
 });
 
-// Helper function to get chain-specific contract
+// Helper functions
 async function getChainContract(chain) {
     let contractAddress, rpcUrl;
     
@@ -52,13 +55,50 @@ async function getChainContract(chain) {
     return { contract, provider, contractAddress, rpcUrl };
 }
 
-async function checkValueRoles(nftVerificationContract, nftAddress, walletAddress, count) {
+async function checkValueRoles(nftVerificationContract, nftAddress, walletAddress, count, ownedTokenIds = []) {
     try {
+        if (ownedTokenIds && ownedTokenIds.length > 0) {
+            console.log('Using specific token IDs for value calculation:', ownedTokenIds);
+            return await assignRolesBasedOnValue(nftVerificationContract, walletAddress, nftAddress, count, ownedTokenIds);
+        }
         const result = await assignRolesBasedOnValue(nftVerificationContract, walletAddress, nftAddress, count);
         return result;
     } catch (error) {
         console.error('Error checking value roles:', error);
         return { hasValueRole: false, error };
+    }
+}
+
+async function storeVerificationResult(userId, nftAddress, result) {
+    try {
+        const key = `verification:${userId}:${nftAddress}`;
+        await redisClient.setex(
+            key,
+            3600,
+            JSON.stringify({
+                ...result,
+                timestamp: Date.now()
+            })
+        );
+    } catch (error) {
+        console.error('Error storing verification result:', error);
+    }
+}
+
+async function getStoredVerificationResult(userId, nftAddress) {
+    try {
+        const key = `verification:${userId}:${nftAddress}`;
+        const stored = await redisClient.get(key);
+        if (stored) {
+            const result = JSON.parse(stored);
+            if (Date.now() - result.timestamp < 300000) {
+                return result;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error retrieving verification result:', error);
+        return null;
     }
 }
 
@@ -157,7 +197,8 @@ const commands = [
         name: 'unregistervaluerole',
         description: 'Unregister a value-based role for an NFT'
     }
-];client.once('ready', async () => {
+];
+client.once('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
     try {
         console.log('Started refreshing application (/) commands.');
@@ -178,27 +219,27 @@ client.on('interactionCreate', async interaction => {
         if (interaction.isButton()) {
             let chain;
             console.log("Button interaction received:", interaction.customId);
-
+            
             await interaction.deferReply({ ephemeral: true });
-
+            
             if (interaction.customId === 'selectSongbird') {
                 chain = 'Songbird';
             } else if (interaction.customId === 'selectFlare') {
                 chain = 'Flare';
             }
-
+            
             if (chain) {
-                const { contract: nftVerificationContract, contractAddress, rpcUrl } = await getChainContract(chain);
+                const { contract: nftVerificationContract, contractAddress, rpcUrl, provider } = await getChainContract(chain);
                 console.log(`Chain selected: ${chain}, Contract Address: ${contractAddress}, RPC URL: ${rpcUrl}`);
-
+                
                 // Check for verify command data
                 const verifyData = await redisClient.get(`verifyCommand:${interaction.user.id}`);
                 if (verifyData) {
                     const { walletAddress, nftAddress, guildId, interactionId, interactionToken } = JSON.parse(verifyData);
-
+                    
                     const verificationId = sessionManager.generateUUID();
                     const verificationUrl = `${process.env.WEB_SERVER_URL}/verify?token=${verificationId}&chain=${chain}`;
-
+                    
                     await sessionManager.storeVerificationData(verificationId, {
                         discordId: interaction.user.id,
                         username: interaction.user.username,
@@ -210,7 +251,7 @@ client.on('interactionCreate', async interaction => {
                         guildId,
                         chain
                     });
-
+                    
                     await redisClient.del(`verifyCommand:${interaction.user.id}`);
                     await interaction.editReply({
                         content: `Please [click here](${verificationUrl}) to verify your wallet and NFT ownership on ${chain}.`,
@@ -237,22 +278,36 @@ client.on('interactionCreate', async interaction => {
                                 if (!nftAddress) continue;
 
                                 try {
-                                    const [isOwner, count] = await nftVerificationContract.verifyOwnershipWithCount(
-                                        walletAddressChecksum, 
-                                        nftAddress
+                                    // Try contract verification first
+                                    const verificationResult = await verifyNFTOwnership(
+                                        walletAddressChecksum,
+                                        nftAddress,
+                                        chain,
+                                        provider,
+                                        nftVerificationContract
                                     );
 
-                                    if (isOwner && count > 0) {
+                                    if (verificationResult.isOwner) {
                                         if (!walletHeaderAdded) {
                                             responseLines.push(`\n**Wallet: ${walletAddressChecksum}**`);
                                             walletHeaderAdded = true;
                                         }
 
                                         hasNFTs = true;
-                                        let nftLine = `• ${nftAddress} on ${chain}: ${count} NFTs`;
+                                        let nftLine = `• ${nftAddress} on ${chain}: ${verificationResult.count} NFTs`;
+                                        if (verificationResult.method === 'erc721_fallback') {
+                                            nftLine += ` (Found via ${verificationResult.method})`;
+                                        }
 
-                                        // Check value roles
-                                        const valueRoleInfo = await checkValueRoles(nftVerificationContract, nftAddress, walletAddressChecksum, count);
+                                        // Check value roles with token IDs if available
+                                        const valueRoleInfo = await checkValueRoles(
+                                            nftVerificationContract,
+                                            nftAddress,
+                                            walletAddressChecksum,
+                                            verificationResult.count,
+                                            verificationResult.ownedTokenIds
+                                        );
+
                                         if (valueRoleInfo.hasValueRole) {
                                             nftLine += ` (Value: ${valueRoleInfo.totalValue}`;
                                             if (valueRoleInfo.isEligible) {
@@ -265,7 +320,6 @@ client.on('interactionCreate', async interaction => {
                                         responseLines.push(nftLine);
                                     }
                                 } catch (nftError) {
-                                    // Skip NFTs that aren't mapped
                                     if (!nftError.message.includes('NFT not mapped') && !nftError.message.includes('execution reverted')) {
                                         console.error(`Error checking NFT ${nftAddress}:`, nftError);
                                     }
@@ -304,7 +358,8 @@ client.on('interactionCreate', async interaction => {
 
                     await redisClient.del(`checkusernfts:${interaction.user.id}`);
                     return;
-                }// Check for updateallroles command data
+                }
+// Check for updateallroles command data
                 const nftAddress = await redisClient.get(`updateallroles:${interaction.user.id}`);
                 if (nftAddress) {
                     try {
@@ -349,19 +404,42 @@ client.on('interactionCreate', async interaction => {
                                 const guild = await client.guilds.fetch(guildId);
                                 const member = await guild.members.fetch(discordId);
 
-                                let isOwnerOfAny = false;
-                                let maxCount = 0;
-                                let ownerWallet = '';
+                                let maxOwnershipInfo = {
+                                    isOwner: false,
+                                    count: '0',
+                                    ownerWallet: '',
+                                    ownedTokenIds: []
+                                };
 
                                 for (const walletAddress of walletAddresses) {
                                     try {
                                         const walletAddressChecksum = ethers.utils.getAddress(walletAddress);
-                                        const [isOwner, count] = await nftVerificationContract.verifyOwnershipWithCount(walletAddressChecksum, nftAddress);
                                         
-                                        if (isOwner && count > maxCount) {
-                                            isOwnerOfAny = true;
-                                            maxCount = count;
-                                            ownerWallet = walletAddressChecksum;
+                                        // Check cached results first
+                                        let verificationResult = await getStoredVerificationResult(discordId, nftAddress);
+                                        
+                                        if (!verificationResult) {
+                                            verificationResult = await verifyNFTOwnership(
+                                                walletAddressChecksum,
+                                                nftAddress,
+                                                chain,
+                                                provider,
+                                                nftVerificationContract
+                                            );
+
+                                            if (verificationResult.isOwner) {
+                                                await storeVerificationResult(discordId, nftAddress, verificationResult);
+                                            }
+                                        }
+
+                                        if (verificationResult.isOwner && 
+                                            parseInt(verificationResult.count) > parseInt(maxOwnershipInfo.count)) {
+                                            maxOwnershipInfo = {
+                                                isOwner: true,
+                                                count: verificationResult.count,
+                                                ownerWallet: walletAddressChecksum,
+                                                ownedTokenIds: verificationResult.ownedTokenIds || []
+                                            };
                                         }
                                     } catch (walletError) {
                                         if (!walletError.message.includes('NFT not mapped')) {
@@ -371,8 +449,8 @@ client.on('interactionCreate', async interaction => {
                                     }
                                 }
 
-                                if (isOwnerOfAny) {
-                                    console.log(`User owns NFTs in wallet: ${ownerWallet}, Count: ${maxCount}`);
+                                if (maxOwnershipInfo.isOwner) {
+                                    console.log(`User owns NFTs in wallet: ${maxOwnershipInfo.ownerWallet}, Count: ${maxOwnershipInfo.count}`);
 
                                     // Check standard roles first
                                     const rolesData = await nftVerificationContract.getRolesForNFT(nftAddress);
@@ -399,8 +477,15 @@ client.on('interactionCreate', async interaction => {
                                         }
                                     }
 
-                                    // Check for value roles
-                                    const valueRoleInfo = await checkValueRoles(nftVerificationContract, nftAddress, ownerWallet, maxCount);
+                                    // Check for value roles with token IDs
+                                    const valueRoleInfo = await checkValueRoles(
+                                        nftVerificationContract,
+                                        nftAddress,
+                                        maxOwnershipInfo.ownerWallet,
+                                        maxOwnershipInfo.count,
+                                        maxOwnershipInfo.ownedTokenIds
+                                    );
+
                                     if (valueRoleInfo.hasValueRole) {
                                         const valueRole = guild.roles.cache.find(r => r.name === valueRoleInfo.roleName);
                                         
@@ -422,7 +507,13 @@ client.on('interactionCreate', async interaction => {
                                     }
                                 } else {
                                     // Check if user had any value roles that need to be removed
-                                    const valueRoleInfo = await checkValueRoles(nftVerificationContract, nftAddress, ownerWallet, 0);
+                                    const valueRoleInfo = await checkValueRoles(
+                                        nftVerificationContract,
+                                        nftAddress,
+                                        maxOwnershipInfo.ownerWallet,
+                                        0,
+                                        []
+                                    );
                                     if (valueRoleInfo.hasValueRole) {
                                         const valueRole = guild.roles.cache.find(r => r.name === valueRoleInfo.roleName);
                                         if (valueRole && member.roles.cache.has(valueRole.id)) {
@@ -442,7 +533,9 @@ client.on('interactionCreate', async interaction => {
                         }
 
                         // Build response message
-                        let responseMessage = `**Role Update Complete on ${chain}**\n\n`;if (results.standardRolesAssigned.length > 0) {
+                        let responseMessage = `**Role Update Complete on ${chain}**\n\n`;
+
+                        if (results.standardRolesAssigned.length > 0) {
                             responseMessage += '**Standard Roles Assigned:**\n';
                             results.standardRolesAssigned.forEach(entry => {
                                 responseMessage += `• ${entry}\n`;
@@ -497,8 +590,7 @@ client.on('interactionCreate', async interaction => {
             }
             return;
         }
-
-        if (!interaction.isCommand()) return;
+if (!interaction.isCommand()) return;
 
         const { commandName, options } = interaction;
 
@@ -541,154 +633,179 @@ client.on('interactionCreate', async interaction => {
             return;
 
         } else if (commandName === 'continue') {
-            await interaction.deferReply({ ephemeral: true });
-            const userId = interaction.user.id;
-            const verificationData = await sessionManager.retrieveVerificationDataByDiscordId(userId);
+    await interaction.deferReply({ ephemeral: true });
+    const userId = interaction.user.id;
+    const verificationData = await sessionManager.retrieveVerificationDataByDiscordId(userId);
 
-            if (!verificationData) {
-                return interaction.editReply({ content: 'Please complete the wallet verification first or ensure all data was submitted correctly.', ephemeral: true });
-            }
+    if (!verificationData) {
+        return interaction.editReply({ 
+            content: 'Please complete the wallet verification first or ensure all data was submitted correctly.', 
+            ephemeral: true 
+        });
+    }
 
+    try {
+        const { walletAddress, nftAddress, chain } = verificationData;
+        const progressMessage = await interaction.editReply({ 
+            content: '⏳ Verifying NFT ownership... This may take a few moments.',
+            ephemeral: true 
+        });
+
+        const { contract: nftVerificationContract, provider } = await getChainContract(chain);
+        
+        // Create a progress updater
+        let progressDots = 0;
+        const progressInterval = setInterval(async () => {
+            progressDots = (progressDots + 1) % 4;
+            const dots = '.'.repeat(progressDots);
             try {
-                const { walletAddress, nftAddress, chain } = verificationData;
-                console.log(`Verifying ownership for wallet: ${walletAddress} and NFT: ${nftAddress} on ${chain}`);
-
-                const { contract: nftVerificationContract } = await getChainContract(chain);
-                const [isOwner, count] = await nftVerificationContract.verifyOwnershipWithCount(walletAddress, nftAddress);
-                console.log(`Is Owner: ${isOwner}, Count: ${count}`);
-
-                if (isOwner) {
-                    const rolesData = await nftVerificationContract.getRolesForNFT(nftAddress);
-                    const roles = rolesData.map(role => role.roleName);
-                    let responseMessage = `NFT ownership verified on ${chain}.`;
-                    let roleAssignmentResults = [];
-
-                    // Handle standard role assignment
-                    if (roles.length > 0) {
-                        const guild = await client.guilds.fetch(interaction.guild.id);
-                        const member = await guild.members.fetch(userId);
-
-                        const roleObjects = roles
-                            .map(role => {
-                                const found = guild.roles.cache.find(r => r.name === role);
-                                if (!found) {
-                                    roleAssignmentResults.push(`Role '${role}' not found in server`);
-                                    return null;
-                                }
-                                return found;
-                            })
-                            .filter(Boolean);
-
-                        for (const role of roleObjects) {
-                            try {
-                                await member.roles.add(role);
-                                roleAssignmentResults.push(`Role '${role.name}' assigned successfully`);
-                            } catch (roleError) {
-                                roleAssignmentResults.push(`Failed to assign role '${role.name}': ${roleError.message}`);
-                            }
-                        }
-                    }
-
-                    // Handle value roles
-                    try {
-                        const valueRoleInfo = await checkValueRoles(nftVerificationContract, nftAddress, walletAddress, count);
-                        if (valueRoleInfo.hasValueRole) {
-                            const guild = await client.guilds.fetch(interaction.guild.id);
-                            const member = await guild.members.fetch(userId);
-                            const valueRole = guild.roles.cache.find(r => r.name === valueRoleInfo.roleName);
-
-                            if (valueRole) {
-                                if (valueRoleInfo.isEligible) {
-                                    await member.roles.add(valueRole);
-                                    roleAssignmentResults.push(
-                                        `Value-based role '${valueRoleInfo.roleName}' assigned successfully ` +
-                                        `(Value: ${valueRoleInfo.totalValue}, Required: ${valueRoleInfo.requiredValue})`
-                                    );
-                                } else if (member.roles.cache.has(valueRole.id)) {
-                                    await member.roles.remove(valueRole);
-                                    roleAssignmentResults.push(
-                                        `Value-based role '${valueRoleInfo.roleName}' removed ` +
-                                        `(Current Value: ${valueRoleInfo.totalValue}, Required: ${valueRoleInfo.requiredValue})`
-                                    );
-                                } else {
-                                    roleAssignmentResults.push(
-                                        `Insufficient value for role '${valueRoleInfo.roleName}' ` +
-                                        `(Current Value: ${valueRoleInfo.totalValue}, Required: ${valueRoleInfo.requiredValue})`
-                                    );
-                                }
-                            } else {
-                                roleAssignmentResults.push(`Value-based role '${valueRoleInfo.roleName}' not found in server`);
-                            }
-                        }
-                    } catch (valueRoleError) {
-                        if (!valueRoleError.message.includes('NFT not mapped')) {
-                            console.error('Error checking value roles:', valueRoleError);
-                            roleAssignmentResults.push(`Error checking value roles: ${valueRoleError.message}`);
-                        }
-                    }
-
-                    if (roleAssignmentResults.length > 0) {
-                        responseMessage += '\nRole Assignment Results:\n• ' + roleAssignmentResults.join('\n• ');
-                    } else {
-                        responseMessage += ' No roles configured for this NFT.';
-                    }
-
-                    await interaction.editReply({ content: responseMessage, ephemeral: true });
-                    await sessionManager.deleteVerificationData(verificationData.interactionToken);
-                } else {
-                    await interaction.editReply({ content: `NFT ownership could not be verified on ${chain}.`, ephemeral: true });
-                }
-            } catch (error) {
-                console.error('NFT verification failed:', error);
-                await interaction.editReply({ content: `NFT verification failed: ${error.message}. Please try again.`, ephemeral: true });
-            }
-
-            const { cleanRedisKeys } = require('./server/public/js/cleanRedis');
-            await cleanRedisKeys();
-            console.log('Ran cleanRedisKeys successfully.');} else if (commandName === 'updateallroles') {
-            await interaction.deferReply({ ephemeral: true });
-
-            // Check for admin permissions
-            if (!interaction.member.permissions.has('Administrator')) {
-                return interaction.editReply({ 
-                    content: 'You need administrator permissions to use this command.', 
+                await progressMessage.edit({ 
+                    content: `⏳ Verifying NFT ownership${dots.padEnd(3, ' ')}`,
                     ephemeral: true 
                 });
+            } catch (e) {
+                // Ignore edit errors if message was already updated
             }
+        }, 800);
 
-            const nftAddress = options.getString('nftaddress');
-
-            if (!ethers.utils.isAddress(nftAddress)) {
-                return interaction.editReply({ 
-                    content: 'Invalid NFT address provided.', 
-                    ephemeral: true 
-                });
-            }
-
-            // Store NFT address for later use
-            await redisClient.set(`updateallroles:${interaction.user.id}`, nftAddress);
-
-            // Show chain selection buttons
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('selectSongbird')
-                        .setLabel('Songbird')
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('selectFlare')
-                        .setLabel('Flare')
-                        .setStyle(ButtonStyle.Secondary)
+        try {
+            // Check cached results first
+            let verificationResult = await getStoredVerificationResult(userId, nftAddress);
+            
+            if (!verificationResult) {
+                verificationResult = await verifyNFTOwnership(
+                    walletAddress,
+                    nftAddress,
+                    chain,
+                    provider,
+                    nftVerificationContract
                 );
 
-            await interaction.editReply({
-                content: 'Please select the network for role updates:',
-                components: [row],
-                ephemeral: true
-            });
-            return;
+                // Cache successful verifications
+                if (verificationResult.isOwner) {
+                    await storeVerificationResult(userId, nftAddress, verificationResult);
+                }
+            }
 
-        } else if (commandName === 'checkusernfts') {
+            // Clear the progress interval
+            clearInterval(progressInterval);
+
+            if (verificationResult.isOwner) {
+                const rolesData = await nftVerificationContract.getRolesForNFT(nftAddress);
+                const roles = rolesData.map(role => role.roleName);
+                let responseMessage = '✅ NFT ownership verified successfully!';
+                let roleAssignmentResults = [];
+
+                // Handle standard role assignment
+                if (roles.length > 0) {
+                    const guild = await client.guilds.fetch(interaction.guild.id);
+                    const member = await guild.members.fetch(userId);
+
+                    const roleObjects = roles
+                        .map(role => {
+                            const found = guild.roles.cache.find(r => r.name === role);
+                            if (!found) {
+                                roleAssignmentResults.push(`⚠️ Role '${role}' not found in server`);
+                                return null;
+                            }
+                            return found;
+                        })
+                        .filter(Boolean);
+
+                    for (const role of roleObjects) {
+                        try {
+                            await member.roles.add(role);
+                            roleAssignmentResults.push(`✅ Role '${role.name}' assigned`);
+                        } catch (roleError) {
+                            roleAssignmentResults.push(`❌ Failed to assign role '${role.name}'`);
+                        }
+                    }
+                }
+
+                // Handle value roles with token IDs if available
+                try {
+                    const valueRoleInfo = await checkValueRoles(
+                        nftVerificationContract,
+                        nftAddress,
+                        walletAddress,
+                        verificationResult.count,
+                        verificationResult.ownedTokenIds
+                    );
+
+                    if (valueRoleInfo.hasValueRole) {
+                        const guild = await client.guilds.fetch(interaction.guild.id);
+                        const member = await guild.members.fetch(userId);
+                        const valueRole = guild.roles.cache.find(r => r.name === valueRoleInfo.roleName);
+
+                        if (valueRole) {
+                            if (valueRoleInfo.isEligible) {
+                                await member.roles.add(valueRole);
+                                roleAssignmentResults.push(
+                                    `✅ Value-based role '${valueRoleInfo.roleName}' assigned ` +
+                                    `(Value: ${valueRoleInfo.totalValue})`
+                                );
+                            } else if (member.roles.cache.has(valueRole.id)) {
+                                await member.roles.remove(valueRole);
+                                roleAssignmentResults.push(
+                                    `ℹ️ Value-based role '${valueRoleInfo.roleName}' removed ` +
+                                    `(Current Value: ${valueRoleInfo.totalValue}, Required: ${valueRoleInfo.requiredValue})`
+                                );
+                            } else {
+                                roleAssignmentResults.push(
+                                    `ℹ️ Insufficient value for role '${valueRoleInfo.roleName}' ` +
+                                    `(Current Value: ${valueRoleInfo.totalValue}, Required: ${valueRoleInfo.requiredValue})`
+                                );
+                            }
+                        } else {
+                            roleAssignmentResults.push(`⚠️ Value-based role '${valueRoleInfo.roleName}' not found in server`);
+                        }
+                    }
+                } catch (valueRoleError) {
+                    if (!valueRoleError.message.includes('NFT not mapped')) {
+                        roleAssignmentResults.push(`❌ Error checking value roles: ${valueRoleError.message}`);
+                    }
+                }
+
+                if (roleAssignmentResults.length > 0) {
+                    responseMessage += '\n\n' + roleAssignmentResults.join('\n');
+                } else {
+                    responseMessage += '\n\nℹ️ No roles configured for this NFT.';
+                }
+
+                await interaction.editReply({ content: responseMessage, ephemeral: true });
+
+            } else {
+                await interaction.editReply({ 
+                    content: '❌ NFT ownership could not be verified.',
+                    ephemeral: true 
+                });
+            }
+
+        } catch (error) {
+            clearInterval(progressInterval);
+            console.error('Verification processing error:', error);
+            await interaction.editReply({ 
+                content: '❌ Verification failed. Please try again.',
+                ephemeral: true 
+            });
+        }
+
+        // Cleanup
+        await sessionManager.deleteVerificationData(verificationData.interactionToken);
+
+        // Run Redis cleanup
+        const { cleanRedisKeys } = require('./server/public/js/cleanRedis');
+        await cleanRedisKeys();
+        console.log('Ran cleanRedisKeys successfully.');
+
+    } catch (error) {
+        console.error('NFT verification failed:', error);
+        await interaction.editReply({ 
+            content: '❌ An error occurred during verification. Please try again.',
+            ephemeral: true 
+        });
+      }
+    } else if (commandName === 'checkusernfts') {
             await interaction.deferReply({ ephemeral: true });
 
             // Check for admin permissions
@@ -754,6 +871,49 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
+        } else if (commandName === 'updateallroles') {
+            await interaction.deferReply({ ephemeral: true });
+
+            // Check for admin permissions
+            if (!interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply({ 
+                    content: 'You need administrator permissions to use this command.', 
+                    ephemeral: true 
+                });
+            }
+
+            const nftAddress = options.getString('nftaddress');
+
+            if (!ethers.utils.isAddress(nftAddress)) {
+                return interaction.editReply({ 
+                    content: 'Invalid NFT address provided.', 
+                    ephemeral: true 
+                });
+            }
+
+            // Store NFT address for later use
+            await redisClient.set(`updateallroles:${interaction.user.id}`, nftAddress);
+
+            // Show chain selection buttons
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('selectSongbird')
+                        .setLabel('Songbird')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('selectFlare')
+                        .setLabel('Flare')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            await interaction.editReply({
+                content: 'Please select the network for role updates:',
+                components: [row],
+                ephemeral: true
+            });
+            return;
+
         } else if (commandName === 'addnft') {
             await interaction.deferReply({ ephemeral: true });
             const url = `${process.env.WEB_SERVER_URL}/addnft`;
@@ -802,7 +962,6 @@ client.on('interactionCreate', async interaction => {
             const url = `${process.env.WEB_SERVER_URL}/unregistervaluerole`;
             await interaction.editReply({ content: `Please [click here](${url}) to unregister a value-based role for an NFT.`, ephemeral: true });
         }
-
     } catch (error) {
         console.error('Error handling interaction:', error);
         if (!interaction.replied && !interaction.deferred) {
@@ -827,3 +986,4 @@ setInterval(async () => {
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 module.exports = client;
+

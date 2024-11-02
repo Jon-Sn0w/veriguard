@@ -46,29 +46,118 @@ async function getContractAddress(env) {
     }
 }
 
-async function approveToken() {
-    const paymentTokenAddress = '0x1005dF5400EE5f4C1378becF513833cBc4A6EF53'; // Payment token contract address
-    const paymentAmount = ethers.utils.parseUnits('1000', 18); // Payment amount in wei
+async function getPaymentTokenAddress(env) {
+    const network = document.getElementById('network').value;
+    if (network === 'songbird') {
+        return env.SONGBIRD_PAYMENT_TOKEN_ADDRESS;
+    } else if (network === 'flare') {
+        return env.FLARE_PAYMENT_TOKEN_ADDRESS;
+    } else {
+        throw new Error('Invalid network selected');
+    }
+}
 
+function selectNFTType(type) {
+    const erc721Button = document.getElementById('erc721Button');
+    const erc1155Button = document.getElementById('erc1155Button');
+    const isERC1155Input = document.getElementById('isERC1155');
+    const nftTypeDisplay = document.getElementById('nftTypeDisplay');
+    
+    if (type === '721') {
+        erc721Button.classList.add('bg-blue-500');
+        erc1155Button.classList.remove('bg-purple-500');
+        isERC1155Input.value = false;
+        nftTypeDisplay.textContent = 'Selected: ERC721 Standard';
+    } else {
+        erc1155Button.classList.add('bg-purple-500');
+        erc721Button.classList.remove('bg-blue-500');
+        isERC1155Input.value = true;
+        nftTypeDisplay.textContent = 'Selected: ERC1155 Standard';
+    }
+}
+
+function updateTokenIdField(show) {
+    const tokenIdField = document.getElementById('tokenId');
+    if (show) {
+        tokenIdField.classList.remove('hidden');
+        tokenIdField.value = '';
+    } else {
+        tokenIdField.classList.add('hidden');
+        tokenIdField.value = '0';
+    }
+}
+
+async function formatPaymentAmount(amount) {
+    return ethers.utils.formatUnits(amount, 18);
+}
+
+async function getProvider(env, network) {
+    const rpcUrl = network === 'songbird' ? env.SONGBIRD_RPC_URL : env.FLARE_RPC_URL;
+    return new ethers.providers.JsonRpcProvider(rpcUrl);
+}
+
+async function updatePaymentDisplay() {
+    const paymentDisplay = document.getElementById('paymentDisplay');
+    const paymentTokenDisplay = document.getElementById('paymentToken');
+    
+    try {
+        const network = document.getElementById('network').value;
+        const envResponse = await fetch('/api/env');
+        const env = await envResponse.json();
+        
+        // Use network-specific RPC provider
+        const provider = await getProvider(env, network);
+        const contractAddress = await getContractAddress(env);
+        const tokenName = network === 'songbird' ? 'WBBX' : 'WFLR';
+        
+        const abiResponse = await fetch('/abi.json');
+        const abi = await abiResponse.json();
+        const contract = new ethers.Contract(contractAddress, abi, provider);
+        
+        const paymentAmount = await contract.paymentAmount();
+        const formattedAmount = await formatPaymentAmount(paymentAmount);
+        
+        paymentDisplay.innerHTML = `${formattedAmount} ${tokenName}`;
+        paymentTokenDisplay.innerHTML = `Payment will be made in ${tokenName}`;
+        
+    } catch (error) {
+        console.error('Error updating payment display:', error);
+        paymentDisplay.innerHTML = 'Error loading price';
+        paymentTokenDisplay.innerHTML = 'Please try again later';
+    }
+}
+
+async function approveToken() {
     try {
         const account = await connectWallet();
         if (!account) return;
 
-        // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
+        const network = document.getElementById('network').value;
 
         const contractAddress = await getContractAddress(env);
+        const paymentTokenAddress = await getPaymentTokenAddress(env);
 
-        if (!contractAddress) {
-            throw new Error('Contract address not found for the selected network.');
+        if (!contractAddress || !paymentTokenAddress) {
+            throw new Error('Contract or payment token address not found for the selected network.');
         }
 
         // Initialize ethers
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
 
-        // Approve the spending of the payment token
+        // Get read-only provider for price check
+        const rpcProvider = await getProvider(env, network);
+        const abiResponse = await fetch('/abi.json');
+        const abi = await abiResponse.json();
+        
+        // Use RPC provider for reading contract data
+        const verificationContract = new ethers.Contract(contractAddress, abi, rpcProvider);
+        const paymentAmount = await verificationContract.paymentAmount();
+        
+        console.log('Payment amount from contract:', paymentAmount.toString());
+
         const erc20Abi = [
             {
                 "constant": false,
@@ -92,7 +181,15 @@ async function approveToken() {
                 "type": "function"
             }
         ];
+
         const paymentTokenContract = new ethers.Contract(paymentTokenAddress, erc20Abi, signer);
+        
+        console.log('Approving payment token:', {
+            network,
+            paymentTokenAddress,
+            contractAddress,
+            amount: paymentAmount.toString()
+        });
 
         const approvalTx = await paymentTokenContract.approve(contractAddress, paymentAmount);
         await approvalTx.wait();
@@ -108,37 +205,48 @@ async function approveToken() {
 async function submitAddNFT(event) {
     event.preventDefault();
     const nftAddress = document.getElementById('nftAddress').value;
-    const tokenId = document.getElementById('tokenId').value || 0; // Default to 0 if no tokenId is provided
-    const isERC1155 = document.getElementById('isERC1155').checked;
+    const tokenId = document.getElementById('tokenId').value || '0';
+    const isERC1155 = document.getElementById('isERC1155').value === 'true';
 
     try {
         const account = await connectWallet();
         if (!account) return;
 
-        // Fetch environment variables from the server
         const envResponse = await fetch('/api/env');
         const env = await envResponse.json();
-
+        const network = document.getElementById('network').value;
         const contractAddress = await getContractAddress(env);
 
         if (!contractAddress) {
             throw new Error('Contract address not found for the selected network.');
         }
 
-        // Fetch the ABI from the server
-        const abiResponse = await fetch('/abi.json');
-        const abi = await abiResponse.json();
-
-        // Initialize ethers
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
+
+        const abiResponse = await fetch('/abi.json');
+        const abi = await abiResponse.json();
         const nftVerificationContract = new ethers.Contract(contractAddress, abi, signer);
 
-        // Add the NFT
-        const tx = await nftVerificationContract.addNFT(nftAddress, tokenId, isERC1155);
-        await tx.wait();
+        console.log('Submitting addNFT transaction:', {
+            network,
+            contractAddress,
+            nftAddress,
+            tokenId,
+            isERC1155
+        });
 
-        alert('NFT added successfully!');
+        const tx = await nftVerificationContract.addNFT(nftAddress, tokenId, isERC1155);
+        console.log('Transaction submitted:', tx.hash);
+        const receipt = await tx.wait();
+        console.log('Transaction confirmed:', receipt);
+
+        const nftMappedEvent = receipt.events?.find(event => event.event === 'NFTMapped');
+        if (nftMappedEvent) {
+            alert(`NFT successfully added!\nAddress: ${nftMappedEvent.args.nftAddress}\nToken ID: ${nftMappedEvent.args.tokenId}\nType: ${nftMappedEvent.args.isERC1155 ? 'ERC1155' : 'ERC721'}`);
+        } else {
+            alert('NFT added successfully!');
+        }
     } catch (error) {
         console.error('Error adding NFT:', error);
         alert(`Error adding NFT: ${error.message}`);
@@ -161,10 +269,16 @@ window.addEventListener('load', () => {
     if (tokenId) {
         document.getElementById('tokenId').value = tokenId;
     }
-    document.getElementById('isERC1155').checked = isERC1155;
+    
+    selectNFTType(isERC1155 ? '1155' : '721');
+    
+    if (!tokenId) {
+        document.getElementById('tokenId').value = '0';
+    }
+    
+    updatePaymentDisplay();
 });
 
-// Add event listener for the wallet connection button
 document.addEventListener('DOMContentLoaded', () => {
     const walletButton = document.getElementById('walletButton');
     if (walletButton) {

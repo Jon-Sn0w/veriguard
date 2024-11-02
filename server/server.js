@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/verify', async (req, res) => {
-    const { token } = req.query;
+    const { token, chain } = req.query;
     const verificationData = await sessionManager.retrieveVerificationData(token);
 
     if (!verificationData) {
@@ -54,6 +54,7 @@ app.get('/verify', async (req, res) => {
     req.session.nftAddress = verificationData.nftAddress;
     req.session.username = verificationData.username;
     req.session.token = token;
+    req.session.chain = chain; // Store chain information
 
     console.log('Session data set:', req.session);
 
@@ -73,22 +74,6 @@ app.post('/api/wallet-connect', async (req, res) => {
     const { walletAddress, signature, token, chain } = req.body;
     console.log('Received data:', { walletAddress, signature, token, chain });
 
-    let rpcUrl, contractAddress;
-
-    if (chain === 'songbird') {
-        rpcUrl = process.env.SONGBIRD_RPC_URL;
-        contractAddress = process.env.SONGBIRD_CONTRACT_ADDRESS;
-    } else if (chain === 'flare') {
-        rpcUrl = process.env.FLARE_RPC_URL;
-        contractAddress = process.env.FLARE_CONTRACT_ADDRESS;
-    } else {
-        console.error('Invalid chain specified:', chain);
-        return res.status(400).json({ message: 'Invalid chain specified.' });
-    }
-
-    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    const nftVerificationContract = new ethers.Contract(contractAddress, abi, provider);
-
     let verificationData = await sessionManager.retrieveVerificationData(token);
 
     if (!verificationData) {
@@ -101,18 +86,15 @@ app.post('/api/wallet-connect', async (req, res) => {
     const { discordId, nftAddress, guildId } = verificationData;
     const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
 
-    if (!walletAddress || !nftAddress) {
-        console.error('Missing walletAddress or nftAddress', { walletAddress, nftAddress });
+    if (!walletAddress || !nftAddress || !chain) {
+        console.error('Missing required data', { walletAddress, nftAddress, chain });
         return res.status(400).json({ message: 'Missing required data' });
     }
 
     const message = `Please sign this message to verify you are the owner of the wallet: ${walletAddress}`;
 
     try {
-        console.log('Contract Address:', contractAddress);
-        console.log('RPC URL:', rpcUrl);
-
-        // Verify the signature
+        // Only verify the signature here
         const recoveredAddress = ethers.utils.verifyMessage(message, signature);
         console.log('Recovered Address:', recoveredAddress);
 
@@ -120,34 +102,33 @@ app.post('/api/wallet-connect', async (req, res) => {
             return res.status(400).json({ message: 'Signature verification failed.' });
         }
 
-        // Verify NFT ownership using the contract's verifyOwnership function
-        console.log('Verifying ownership...');
-        console.log('Wallet Address:', walletAddress);
-        console.log('NFT Address:', nftAddress);
-        const isOwner = await nftVerificationContract.verifyOwnership(walletAddress, nftAddress);
-        console.log('Is Owner:', isOwner);
-
-        if (!isOwner) {
-            return res.status(400).json({ message: 'NFT ownership verification failed.' });
-        }
-
+        // Store verification data with chain information
         verificationData.verified = true;
+        verificationData.chain = chain;
         await sessionManager.storeVerificationData(token, verificationData);
 
-        // Store user data separately
+        // Store user data
         const username = verificationData.username;
-        await userDataManager.storeUserData(username, { discordId, username, walletAddress, ipAddress, nftAddress, guildId }, req);
+        await userDataManager.storeUserData(username, {
+            discordId,
+            username,
+            walletAddress,
+            ipAddress,
+            nftAddress,
+            guildId,
+            chain
+        }, req);
 
-        // Immediately delete verification data and session upon successful verification
+        // Clean up session
         await sessionManager.deleteSession(req);
 
-        console.log('Verification successful');
-        res.json({ 
-            message: 'Verification successful. Please return to Discord to continue.', 
+        console.log('Wallet verification successful');
+        res.json({
+            message: 'Verification successful. Please return to Discord to continue.',
             details: { walletAddress, nftAddress }
         });
     } catch (error) {
-        console.error('Error verifying signature or NFT ownership:', error);
+        console.error('Error verifying signature:', error);
         return res.status(400).json({ message: 'Verification failed.', error: error.message });
     }
 });
