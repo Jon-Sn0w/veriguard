@@ -12,17 +12,44 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 
+// Production mode settings
+app.set('env', 'production');
+app.set('trust proxy', 1);
+
 // Middleware setup
 app.use(cors({
     origin: process.env.WEB_SERVER_URL,
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Add OPTIONS handling for CORS preflight
+app.options('*', cors());
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(sessionManager.setupSession());
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Configure session with secure settings
+const sessionConfig = {
+    secret: process.env.SESSION_SECRET,
+    cookie: {
+        secure: true,
+        httpOnly: true,
+        sameSite: 'none',
+        domain: '.veriguardnft.xyz'
+    },
+    resave: false,
+    saveUninitialized: false
+};
+
+app.use(sessionManager.setupSession(sessionConfig));
+
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path) => {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+}));
 
 // Load ABI and set up contract
 const provider = new ethers.providers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL);
@@ -102,9 +129,12 @@ app.post('/api/wallet-connect', async (req, res) => {
             return res.status(400).json({ message: 'Signature verification failed.' });
         }
 
-        // Store verification data with chain information
+        // Store verification data with discordId first
         verificationData.verified = true;
         verificationData.chain = chain;
+        await sessionManager.storeVerificationData(discordId, verificationData);
+        
+        // Then store with token
         await sessionManager.storeVerificationData(token, verificationData);
 
         // Store user data
@@ -119,8 +149,20 @@ app.post('/api/wallet-connect', async (req, res) => {
             chain
         }, req);
 
-        // Clean up session
-        await sessionManager.deleteSession(req);
+        // Clean up session but keep verification data
+        if (req.session) {
+            await new Promise((resolve, reject) => {
+                req.session.destroy(err => {
+                    if (err) {
+                        console.error('Error destroying session:', err);
+                        reject(err);
+                    } else {
+                        console.log('Session destroyed successfully');
+                        resolve();
+                    }
+                });
+            });
+        }
 
         console.log('Wallet verification successful');
         res.json({
@@ -183,7 +225,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.SERVER_PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running in ${app.get('env')} mode on port ${PORT}`);
+    console.log(`Using HTTPS: ${process.env.WEB_SERVER_URL}`);
 });
 
 module.exports = app;

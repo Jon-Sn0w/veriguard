@@ -59,18 +59,30 @@ async function deleteVerificationData(token) {
 }
 
 async function deleteSession(req) {
-    const token = req.session.token; // Retrieve token for verification
-    req.session.destroy(async (err) => {
-        if (err) {
-            console.error("Error destroying session:", err);
-            throw err;
-        }
-
-        if (token) {
-            await deleteVerificationData(token);
-        }
-
-        console.log('Session and verification data deleted.');
+    return new Promise((resolve, reject) => {
+        const token = req.session.token;
+        req.session.destroy(async (err) => {
+            if (err) {
+                console.error("Error destroying session:", err);
+                reject(err);
+                return;
+            }
+            try {
+                if (token) {
+                    // Store verification data with discordId before deleting by token
+                    const verificationData = await retrieveVerificationData(token);
+                    if (verificationData && verificationData.discordId) {
+                        await storeVerificationData(verificationData.discordId, verificationData);
+                    }
+                    await deleteVerificationData(token);
+                }
+                console.log('Session and verification data handled.');
+                resolve();
+            } catch (error) {
+                console.error("Error in verification data cleanup:", error);
+                reject(error);
+            }
+        });
     });
 }
 
