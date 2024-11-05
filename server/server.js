@@ -191,6 +191,17 @@ app.get('/removeNFT', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'removeNFT.html'));
 });
 
+app.get('/api/payment-amount', async (req, res) => {
+    try {
+        const paymentAmount = await nftVerificationContract.paymentAmount();
+        console.log('Fetched paymentAmount from contract:', paymentAmount.toString());
+        res.json({ paymentAmount: paymentAmount.toString() });
+    } catch (error) {
+        console.error('Error fetching paymentAmount:', error);
+        res.status(500).json({ error: 'Failed to fetch payment amount' });
+    }
+});
+
 app.get('/discord-oauth2-callback', oauthHandlers.discordOAuthCallback);
 
 app.get('/api/env', (req, res) => {
@@ -198,7 +209,9 @@ app.get('/api/env', (req, res) => {
         SONGBIRD_RPC_URL: process.env.SONGBIRD_RPC_URL,
         FLARE_RPC_URL: process.env.FLARE_RPC_URL,
         SONGBIRD_CONTRACT_ADDRESS: process.env.SONGBIRD_CONTRACT_ADDRESS,
-        FLARE_CONTRACT_ADDRESS: process.env.FLARE_CONTRACT_ADDRESS
+        FLARE_CONTRACT_ADDRESS: process.env.FLARE_CONTRACT_ADDRESS,
+        SONGBIRD_PAYMENT_TOKEN_ADDRESS: process.env.SONGBIRD_PAYMENT_TOKEN_ADDRESS,
+        FLARE_PAYMENT_TOKEN_ADDRESS: process.env.FLARE_PAYMENT_TOKEN_ADDRESS
     };
     res.json(env);
 });
