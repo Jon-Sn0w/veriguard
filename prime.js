@@ -41,6 +41,9 @@ async function getChainContract(chain) {
     } else if (chain.toLowerCase() === 'flare') {
         contractAddress = process.env.FLARE_CONTRACT_ADDRESS;
         rpcUrl = process.env.FLARE_RPC_URL;
+    } else if (chain.toLowerCase() === 'basechain') {
+        contractAddress = process.env.BASECHAIN_CONTRACT_ADDRESS;
+        rpcUrl = process.env.BASECHAIN_RPC_URL;
     } else {
         throw new Error('Invalid chain specified');
     }
@@ -226,6 +229,8 @@ client.on('interactionCreate', async interaction => {
                 chain = 'Songbird';
             } else if (interaction.customId === 'selectFlare') {
                 chain = 'Flare';
+            } else if (interaction.customId === 'selectBasechain') {
+                chain = 'Basechain';
             }
             
             if (chain) {
@@ -622,7 +627,11 @@ if (!interaction.isCommand()) return;
                     new ButtonBuilder()
                         .setCustomId('selectFlare')
                         .setLabel('Flare')
-                        .setStyle(ButtonStyle.Secondary)
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('selectBasechain')
+                        .setLabel('Basechain')
+                        .setStyle(ButtonStyle.Success)
                 );
 
             await interaction.editReply({
@@ -846,16 +855,20 @@ if (!interaction.isCommand()) return;
 
                 // Show chain selection buttons
                 const row = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('selectSongbird')
-                            .setLabel('Songbird')
-                            .setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder()
-                            .setCustomId('selectFlare')
-                            .setLabel('Flare')
-                            .setStyle(ButtonStyle.Secondary)
-                    );
+    .addComponents(
+        new ButtonBuilder()
+            .setCustomId('selectSongbird')
+            .setLabel('Songbird')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('selectFlare')
+            .setLabel('Flare')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('selectBasechain')
+            .setLabel('Basechain')
+            .setStyle(ButtonStyle.Success)
+    );
 
                 await interaction.editReply({
                     content: 'Please select the network to check NFTs:',
@@ -896,16 +909,20 @@ if (!interaction.isCommand()) return;
 
             // Show chain selection buttons
             const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('selectSongbird')
-                        .setLabel('Songbird')
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('selectFlare')
-                        .setLabel('Flare')
-                        .setStyle(ButtonStyle.Secondary)
-                );
+    .addComponents(
+        new ButtonBuilder()
+            .setCustomId('selectSongbird')
+            .setLabel('Songbird')
+            .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+            .setCustomId('selectFlare')
+            .setLabel('Flare')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('selectBasechain')
+            .setLabel('Basechain')
+            .setStyle(ButtonStyle.Success)
+    );
 
             await interaction.editReply({
                 content: 'Please select the network for role updates:',
