@@ -11,6 +11,10 @@ async function connectWallet() {
     }
 }
 
+function redirectToPurchaseWBBX() {
+    window.open('https://app.blazeswap.xyz/swap/?inputCurrency=NAT&outputCurrency=0xE99F00eC8D25bFbe9d684231B04Fb5Bc5243B028', '_blank');
+}
+
 function displayWalletStatus(isConnected, address, errorMessage = null) {
     const messageContainer = document.getElementById('messageContainer');
     const walletStatus = document.getElementById('walletStatus');
@@ -41,6 +45,8 @@ async function getContractAddress(env) {
         return env.SONGBIRD_CONTRACT_ADDRESS;
     } else if (network === 'flare') {
         return env.FLARE_CONTRACT_ADDRESS;
+    } else if (network === 'basechain') {
+        return env.BASECHAIN_CONTRACT_ADDRESS;
     } else {
         throw new Error('Invalid network selected');
     }
@@ -52,6 +58,8 @@ async function getPaymentTokenAddress(env) {
         return env.SONGBIRD_PAYMENT_TOKEN_ADDRESS;
     } else if (network === 'flare') {
         return env.FLARE_PAYMENT_TOKEN_ADDRESS;
+    } else if (network === 'basechain') {
+        return env.BASECHAIN_PAYMENT_TOKEN_ADDRESS;
     } else {
         throw new Error('Invalid network selected');
     }
@@ -81,8 +89,15 @@ async function formatPaymentAmount(amount) {
 }
 
 async function getProvider(env, network) {
-    const rpcUrl = network === 'songbird' ? env.SONGBIRD_RPC_URL : env.FLARE_RPC_URL;
-    return new ethers.providers.JsonRpcProvider(rpcUrl);
+    if (network === 'songbird') {
+        return new ethers.providers.JsonRpcProvider(env.SONGBIRD_RPC_URL);
+    } else if (network === 'flare') {
+        return new ethers.providers.JsonRpcProvider(env.FLARE_RPC_URL);
+    } else if (network === 'basechain') {
+        return new ethers.providers.JsonRpcProvider(env.BASECHAIN_RPC_URL);
+    } else {
+        throw new Error('Invalid network selected');
+    }
 }
 
 async function updatePaymentDisplay() {
@@ -96,7 +111,7 @@ async function updatePaymentDisplay() {
         
         const provider = await getProvider(env, network);
         const contractAddress = await getContractAddress(env);
-        const tokenName = network === 'songbird' ? 'WSGB' : 'WFLR';
+        const tokenName = network === 'songbird' ? 'WBBX' : (network === 'flare' ? 'WFLR' : 'Weth on Base');
         
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
@@ -125,28 +140,22 @@ async function approveToken() {
         const network = document.getElementById('network').value;
 
         const contractAddress = await getContractAddress(env);
-        const paymentTokenAddress = network === 'songbird' ? 
-            env.SONGBIRD_PAYMENT_TOKEN_ADDRESS : 
-            env.FLARE_PAYMENT_TOKEN_ADDRESS;
+        const paymentTokenAddress = await getPaymentTokenAddress(env);
 
         if (!contractAddress || !paymentTokenAddress) {
             throw new Error('Contract or payment token address not found for the selected network.');
         }
 
-        // Initialize ethers
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
 
-        // Get the contract's payment amount
         const abiResponse = await fetch('/abi.json');
         const abi = await abiResponse.json();
         
-        // Use RPC provider for reading contract data
         const rpcProvider = await getProvider(env, network);
         const verificationContract = new ethers.Contract(contractAddress, abi, rpcProvider);
         const paymentAmount = await verificationContract.paymentAmount();
         
-        // Log the amount we're about to approve
         console.log('Raw payment amount to approve:', paymentAmount.toString());
         console.log('Payment amount in readable format:', ethers.utils.formatUnits(paymentAmount, 18));
 
@@ -176,7 +185,6 @@ async function approveToken() {
 
         const paymentTokenContract = new ethers.Contract(paymentTokenAddress, erc20Abi, signer);
         
-        // Use the raw BigNumber from the contract directly
         const approvalTx = await paymentTokenContract.approve(contractAddress, paymentAmount);
         await approvalTx.wait();
         console.log('Token approval transaction:', approvalTx);
@@ -241,15 +249,18 @@ window.addEventListener('load', () => {
     }
     document.getElementById('isERC1155').checked = isERC1155;
     
-    // Initialize payment display
     updatePaymentDisplay();
 });
 
-// Add event listeners
 document.addEventListener('DOMContentLoaded', () => {
     const walletButton = document.getElementById('walletButton');
     if (walletButton) {
         walletButton.addEventListener('click', connectWallet);
+    }
+    
+    const purchaseButton = document.getElementById('purchaseWBBXButton');
+    if (purchaseButton) {
+        purchaseButton.addEventListener('click', redirectToPurchaseWBBX);
     }
     
     const networkSelect = document.getElementById('network');

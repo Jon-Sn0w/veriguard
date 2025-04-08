@@ -1,69 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord On Chain Verification</title>
+    <title>Welcome to VeriGuard NFT</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="styles/styles.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
 </head>
-
-<body class="bg-animated-gradient text-white min-h-screen">
+<body class="loading">
+    <!-- Navigation Bar -->
     <nav class="bg-gray-800 p-4">
         <div class="container mx-auto flex justify-between items-center">
-            <div class="text-white font-bold text-xl">Discord On Chain Verification</div>
+            <div class="text-white font-bold text-xl"></div>
             <div class="relative">
-                <button class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                <button id="menu-button" class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
                     <span>Menu</span>
                     <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M5.293 7.707a1 1 0 011.414-1.414L10 9.586l3.293-3.293a1 1 0 011.414 1.414L11.414 11l3.293 3.293a1 1 0 01-1.414 1.414L10 12.414l-3.293 3.293a1 1 0 01-1.414-1.414L8.586 11 5.293 7.707z"/>
+                        <path d="M5 7h10L10 13z"/>
                     </svg>
                 </button>
-                <ul class="dropdown-menu absolute hidden text-gray-700 pt-1">
-                    <li class="">
-                        <a class="rounded-t bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/">Home</a>
-                    </li>
-                    <li class="">
-                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/addnft">Add NFT</a>
-                    </li>
-                    <li class="">
-                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/removenft">Remove NFT</a>
-                    </li>
-                    <li class="">
-                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registerrole">Role Registry By Count</a>
-                    </li>
-                    <li class="">
-                        <a class="bg-gray-200 hover:bg-gray-400 py-2 px-4 block whitespace-no-wrap" href="/registervaluerole">Value Based Role Registry</a>
-                    </li>
-                </ul>
+                <div id="dropdown-menu" class="dropdown-menu absolute hidden text-gray-700 pt-1">
+                    <!-- Menu items populated by menu.js -->
+                </div>
             </div>
         </div>
     </nav>
-    <div class="flex items-center justify-center min-h-screen">
-        <div class="container mx-auto px-4 py-8 max-w-lg text-center">
-            <h1 class="text-4xl font-bold mb-6 neon-text">Connect Your Wallet</h1>
-            <p class="mb-6 text-xl">Please connect your wallet to proceed with NFT verification for Discord access.</p>
 
-            <button id="connectWalletButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300 ease-in-out transform hover:scale-110">
-                Connect Wallet
-            </button>
-
-            <div id="nftSelection" class="hidden">
-                <h2 class="text-2xl font-bold mb-4">Select Your NFT for Verification</h2>
-                <form id="nftForm" onsubmit="submitNFT(event)" class="space-y-4">
-                    <label for="nftAddress" class="block text-lg">Choose NFT:</label>
-                    <select id="nftAddress" name="nftAddress" class="block w-full text-black p-2 rounded">
-                        <!-- NFT options will be dynamically populated here -->
-                    </select>
-                    <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:scale-110">
-                        Verify NFT
-                    </button>
-                </form>
-            </div>
-        </div>
+    <!-- Hero Section -->
+    <div class="hero-art relative text-center w-full mb-6" style="background-image: url('/images/hero-art.jpeg');">
+        <div class="hero-text text-white">Welcome to VeriGuard NFT</div>
     </div>
 
-    <script src="js/connectWallet.js"></script>
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8 max-w-4xl text-center">
+        <!-- Introduction -->
+        <h1 class="text-4xl font-bold mb-6 text-white">Empower Your NFTs with VeriGuard
+
+</h1>
+        <p class="text-xl text-gray-300 mb-8">
+            VeriGuard NFT bridges your digital assets with utility, offering seamless Discord verification with royalties and rewards management for NFT creators and collectors.
+        </p>
+
+        <!-- Overview -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">What We Offer</h2>
+            <p class="text-gray-400">
+                Our platform empowers you to verify NFT ownership for exclusive Discord roles and manage royalty distributions effortlessly. Whether you’re a collector securing community access or a creator ensuring fair compensation, VeriGuard has you covered. Currently the platform is tailored to erc-721 only, however erc-1155 compatibilitiy is in development.
+            </p>
+        </div>
+
+        <!-- Verification Explanation -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">NFT Verification</h2>
+            <p class="text-gray-400">
+                Link your wallet to our bot system via a secure verification process. Select your NFT and network (Songbird, Flare, or Basechain), and gain instant access to gated Discord communities based on your ownership—no repetitive logins required.
+            </p>
+            <a href="/userGuide" class="inline-block mt-4 bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Learn More</a>
+        </div>
+
+        <!-- Royalties Explanation -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">Royalties System</h2>
+            <p class="text-gray-400">
+                Creators can deploy royalty contracts to track and distribute earnings from NFT sales. Collectors can collect accrued balances and claim any time while unsold NFTs accrue their own shares of royalty claims adding incentive for buyers of any registered collection. Our system ensures transparency and fairness in the Web3 ecosystem.
+            </p>
+            <a href="/royaltyCollections" class="inline-block mt-4 bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Explore Royalties</a>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 p-4 text-center text-gray-400 w-full">
+            <p>© 2025 BluebirdX Web3 Applications Incorporated. All rights reserved.</p>
+            <div class="footer-art mt-4" style="background-image: url('/images/footer-art.jpeg');"></div>
+        </footer>
+    </div>
+
+    <script src="/js/menu.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.remove('loading');
+        });
+    </script>
 </body>
+</html>

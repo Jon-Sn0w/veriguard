@@ -1,0 +1,401 @@
+/*******************************************************
+* server.js with stability improvements
+*******************************************************/
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const { ethers } = require('ethers');
+const sessionManager = require('./sessionManager');
+const userDataManager = require('./userDataManager');
+const oauthHandlers = require('./oauthHandler');
+const { spawn } = require('child_process');
+
+// Add cleanup function for memory management
+const cleanupInterval = 1000 * 60 * 60; // 1 hour
+
+function cleanup() {
+   try {
+       if (nftVerificationContract) {
+           nftVerificationContract.removeAllListeners();
+       }
+       if (sessionManager.cleanup) {
+           sessionManager.cleanup();
+       }
+       if (global.gc) {
+           global.gc();
+       }
+   } catch (error) {
+       console.error('Cleanup error:', error);
+   }
+}
+
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+const app = express();
+
+// Production mode settings
+app.set('env', 'production');
+app.set('trust proxy', 1);
+
+// Middleware setup
+app.use(cors({
+   origin: process.env.WEB_SERVER_URL,
+   credentials: true,
+   methods: ['GET', 'POST', 'OPTIONS'],
+   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Add OPTIONS handling for CORS preflight
+app.options('*', cors());
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Configure session with secure settings
+const sessionConfig = {
+   secret: process.env.SESSION_SECRET,
+   cookie: {
+       secure: true,
+       httpOnly: true,
+       sameSite: 'none',
+       domain: '.veriguardnft.xyz'
+   },
+   resave: false,
+   saveUninitialized: false
+};
+
+app.use(sessionManager.setupSession(sessionConfig));
+
+// Serve static files from /public
+app.use(express.static(path.join(__dirname, 'public'), {
+   setHeaders: (res, path) => {
+       res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+   }
+}));
+
+// Load ABI and set up contract
+const provider = new ethers.providers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL);
+
+// Add error handling for provider
+provider.on('error', (error) => {
+   console.error('RPC Provider error:', error);
+});
+
+const contractAddress = process.env.CONTRACT_ADDRESS;
+const abi = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'abi.json')));
+const nftVerificationContract = new ethers.Contract(contractAddress, abi, provider);
+
+// Debug: Log contract initialization
+console.log('Contract ABI:', JSON.stringify(abi, null, 2));
+console.log('Available contract functions:', Object.keys(nftVerificationContract.functions));
+
+/*******************************************************
+* Routes
+*******************************************************/
+app.get('/', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/verify', async (req, res) => {
+   const { token, chain } = req.query;
+   const verificationData = await sessionManager.retrieveVerificationData(token);
+
+   if (!verificationData) {
+       console.log('Invalid verification token:', token);
+       return res.status(400).send('Invalid verification token.');
+   }
+
+   // Store verification data in session
+   req.session.userId = verificationData.discordId;
+   req.session.walletAddress = verificationData.walletAddress;
+   req.session.nftAddress = verificationData.nftAddress;
+   req.session.username = verificationData.username;
+   req.session.token = token;
+   req.session.chain = chain; // Store chain info
+
+   console.log('Session data set:', req.session);
+
+   req.session.save((err) => {
+       if (err) {
+           console.error('Error saving session:', err);
+           return res.status(500).send('Error saving session');
+       }
+       console.log('Session saved successfully');
+       res.sendFile(path.join(__dirname, 'public', 'verify.html'));
+   });
+});
+
+app.post('/api/wallet-connect', async (req, res) => {
+   console.log('Session at start of /api/wallet-connect:', req.session);
+
+   const { walletAddress, signature, token, chain } = req.body;
+   console.log('Received data:', { walletAddress, signature, token, chain });
+
+   let verificationData = await sessionManager.retrieveVerificationData(token);
+
+   if (!verificationData) {
+       console.log('No verification data found for token:', token);
+       return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+   }
+
+   console.log('Verification data:', verificationData);
+
+   const { discordId, nftAddress, guildId } = verificationData;
+   const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+   if (!walletAddress || !nftAddress || !chain) {
+       console.error('Missing required data', { walletAddress, nftAddress, chain });
+       return res.status(400).json({ message: 'Missing required data' });
+   }
+
+   const message = `Please sign this message to verify you are the owner of the wallet: ${walletAddress}`;
+
+   try {
+       // Verify signature
+       const recoveredAddress = ethers.utils.verifyMessage(message, signature);
+       console.log('Recovered Address:', recoveredAddress);
+
+       if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+           return res.status(400).json({ message: 'Signature verification failed.' });
+       }
+
+       // Store verification data with discordId
+       verificationData.verified = true;
+       verificationData.chain = chain;
+       await sessionManager.storeVerificationData(discordId, verificationData);
+       
+       // Also store with token
+       await sessionManager.storeVerificationData(token, verificationData);
+
+       // Store user data
+       const username = verificationData.username;
+       await userDataManager.storeUserData(username, {
+           discordId,
+           username,
+           walletAddress,
+           ipAddress,
+           nftAddress,
+           guildId,
+           chain
+       }, req);
+
+       // Destroy session but keep verification data
+       if (req.session) {
+           await new Promise((resolve, reject) => {
+               req.session.destroy(err => {
+                   if (err) {
+                       console.error('Error destroying session:', err);
+                       reject(err);
+                   } else {
+                       console.log('Session destroyed successfully');
+                       resolve();
+                   }
+               });
+           });
+       }
+
+       console.log('Wallet verification successful');
+       res.json({
+           message: 'Verification successful. Please return to Discord to continue.',
+           details: { walletAddress, nftAddress }
+       });
+   } catch (error) {
+       console.error('Error verifying signature:', error);
+       return res.status(400).json({ message: 'Verification failed.', error: error.message });
+   }
+});
+
+app.get('/registerRole', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'registerRole.html'));
+});
+
+app.get('/registerValueRole', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'registerValueRole.html'));
+});
+
+app.get('/addNFT', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'addNFT.html'));
+});
+
+app.get('/removeNFT', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'removeNFT.html'));
+});
+
+app.get('/api/payment-amount', async (req, res) => {
+   const { chain } = req.query;
+
+   let rpcUrl, contractAddress;
+   if (chain === 'songbird') {
+       rpcUrl = process.env.SONGBIRD_RPC_URL;
+       contractAddress = process.env.SONGBIRD_CONTRACT_ADDRESS;
+   } else if (chain === 'flare') {
+       rpcUrl = process.env.FLARE_RPC_URL;
+       contractAddress = process.env.FLARE_CONTRACT_ADDRESS;
+   } else if (chain === 'basechain') {
+       rpcUrl = process.env.BASECHAIN_RPC_URL;
+       contractAddress = process.env.BASECHAIN_CONTRACT_ADDRESS;
+   } else {
+       return res.status(400).json({ error: 'Invalid chain specified' });
+   }
+
+   try {
+       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+       const abi = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'abi.json')));
+       const contract = new ethers.Contract(contractAddress, abi, provider);
+       const paymentAmount = await contract.paymentAmount();
+       console.log(`Fetched paymentAmount for ${chain} from contract:`, paymentAmount.toString());
+       res.json({ paymentAmount: paymentAmount.toString() });
+   } catch (error) {
+       console.error(`Error fetching paymentAmount for ${chain}:`, error);
+       res.status(500).json({ error: 'Failed to fetch payment amount' });
+   }
+});
+
+app.get('/discord-oauth2-callback', oauthHandlers.discordOAuthCallback);
+
+app.get('/api/env', (req, res) => {
+   const env = {
+       SONGBIRD_RPC_URL: process.env.SONGBIRD_RPC_URL,
+       FLARE_RPC_URL: process.env.FLARE_RPC_URL,
+       BASECHAIN_RPC_URL: process.env.BASECHAIN_RPC_URL,
+       SONGBIRD_CONTRACT_ADDRESS: process.env.SONGBIRD_CONTRACT_ADDRESS,
+       FLARE_CONTRACT_ADDRESS: process.env.FLARE_CONTRACT_ADDRESS,
+       BASECHAIN_CONTRACT_ADDRESS: process.env.BASECHAIN_CONTRACT_ADDRESS,
+       SONGBIRD_PAYMENT_TOKEN_ADDRESS: process.env.SONGBIRD_PAYMENT_TOKEN_ADDRESS,
+       FLARE_PAYMENT_TOKEN_ADDRESS: process.env.FLARE_PAYMENT_TOKEN_ADDRESS,
+       BASECHAIN_PAYMENT_TOKEN_ADDRESS: process.env.BASECHAIN_PAYMENT_TOKEN_ADDRESS
+   };
+   console.log('Environment variables sent to client:', env); // For debugging
+   res.json(env);
+});
+
+app.get('/api/abi', (req, res) => {
+   const abi = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'abi.json')));
+   res.json(abi);
+});
+
+app.get('/rewards', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'rewards.html'));
+});
+
+app.get('/royaltyCollections', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'royaltyCollections.html'));
+});
+
+app.get('/governance', (req, res) => {
+   res.sendFile(path.join(__dirname, 'public', 'governance.html'));
+});
+
+app.get('/api/rewards-data', (req, res) => {
+  try {
+      const dataPath = path.join(__dirname, 'public/data/rewards-data.json');
+      const historicalPath = path.join(__dirname, 'public/data/historical-periods.json');
+      
+      // Load both files
+      const rewardsData = fs.existsSync(dataPath) 
+          ? JSON.parse(fs.readFileSync(dataPath, 'utf8'))
+          : {
+              lastUpdated: new Date().toISOString(),
+              systemMetrics: {
+                  xrpPrice: 0,
+                  totalLotsRedeemed: 0,
+                  currentPeriodLotsRedeemed: 0,
+                  currentPeriod: 1,
+                  biweeklyReward: 29714
+              },
+              feesPerLot: {
+                  xrpValue: 100,
+                  usdValue: 228,
+                  totalFee: 4.56
+              },
+              periodData: {}
+          };
+
+      // Load historical data
+      const historicalData = fs.existsSync(historicalPath)
+          ? JSON.parse(fs.readFileSync(historicalPath, 'utf8'))
+          : {};
+
+      // Combine the data
+      const combinedData = {
+          ...rewardsData,
+          historicalPeriods: historicalData
+      };
+
+      res.json(combinedData);
+  } catch (error) {
+      console.error('Error reading rewards data:', error);
+      res.status(500).json({ error: 'Failed to read rewards data' });
+  }
+});
+
+/*******************************************************
+* NEW ROUTE: /api/agent-data
+*******************************************************/
+app.get('/api/agent-data', (req, res) => {
+   try {
+       // Must match the file path that agent-data.js writes to.
+       const filePath = path.join(__dirname, 'public/data/agent-data.json');
+       
+       if (!fs.existsSync(filePath)) {
+           // If file doesn't exist, create a default (empty array or object).
+           const defaultAgentData = [];
+           fs.mkdirSync(path.dirname(filePath), { recursive: true });
+           fs.writeFileSync(filePath, JSON.stringify(defaultAgentData, null, 2));
+           return res.json(defaultAgentData);
+       }
+       
+       const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+       res.json(data);
+   } catch (error) {
+       console.error('Error reading agent-data.json:', error);
+       res.status(500).json({ error: 'Failed to read agent data' });
+   }
+});
+
+app.post('/api/invalidate-session', (req, res) => {
+   req.session.destroy((err) => {
+       if (err) {
+           return res.status(500).json({ message: 'Failed to invalidate session' });
+       }
+       res.json({ message: 'Session invalidated successfully' });
+   });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+   console.error('An error occurred:', err);
+   res.status(500).send('Internal Server Error');
+});
+
+// Run cleanup periodically
+setInterval(cleanup, cleanupInterval);
+
+// Graceful shutdown handling
+const PORT = process.env.SERVER_PORT || 3001;
+const server = app.listen(PORT, () => {
+   console.log(`Server running in ${app.get('env')} mode on port ${PORT}`);
+   console.log(`Using HTTPS: ${process.env.WEB_SERVER_URL}`);
+});
+
+process.on('SIGTERM', () => {
+   console.log('Received SIGTERM. Performing graceful shutdown...');
+   server.close(() => {
+       cleanup();
+       console.log('Server closed');
+       process.exit(0);
+   });
+});
+
+process.on('SIGINT', () => {
+   console.log('Received SIGINT. Performing graceful shutdown...');
+   server.close(() => {
+       cleanup();
+       console.log('Server closed');
+       process.exit(0);
+   });
+});
+
+module.exports = app;

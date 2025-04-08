@@ -3,7 +3,7 @@ document.getElementById('connectWalletButton').addEventListener('click', async (
     // Additional verification logic after wallet connection
     const walletAddress = await ethereum.request({ method: 'eth_accounts' }).then(accounts => accounts[0]);
     const token = getQueryParam('token');
-    const chain = getQueryParam('chain')?.toLowerCase(); // Get chain from URL
+    const chain = document.getElementById('network').value.toLowerCase(); // Get chain from dropdown selection
 
     try {
         const signature = await signMessage(walletAddress);

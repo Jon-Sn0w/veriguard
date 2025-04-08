@@ -1,0 +1,19 @@
+{
+  "FXRP": {
+    "lastUpdated": "2025-03-05T23:52:26.928Z",
+    "error": "Unexpected token 'e', \"error code: 504\" is not valid JSON"
+  },
+  "FDOGE": {
+    "lastUpdated": "2025-03-05T23:52:26.928Z",
+    "systemMetrics": {
+      "currentPeriod": 6,
+      "biweeklyReward": 14857,
+      "totalLotsRedeemed": 0,
+      "totalEvents": 0,
+      "price": 0,
+      "lotsThisPeriod": 0,
+      "eventsThisPeriod": 0
+    },
+    "periodData": {}
+  }
+}

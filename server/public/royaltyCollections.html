@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Royalty Collections</title>
+  
+  <!-- External CSS -->
+  <link rel="stylesheet" href="/styles/styles.css">
+  
+  <!-- Tailwind CSS CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="loading" id="body">
+  <!-- Navigation Bar -->
+  <nav class="bg-gray-800 p-4">
+    <div class="container mx-auto flex justify-between items-center">
+      <div class="text-white font-bold text-xl">Royalty Collections</div>
+      <div class="relative">
+        <button id="menu-button" class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+          <span>Menu</span>
+          <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+            <path d="M5 7h10L10 13z"/> <!-- Downward arrow -->
+          </svg>
+        </button>
+        <div id="dropdown-menu" class="dropdown-menu absolute hidden text-gray-700 pt-1"></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <div class="container mx-auto px-4 py-6 max-w-5xl flex flex-col items-center">
+    <!-- Hero Section -->
+    <div class="hero-art relative text-center w-full" style="background-image: url('/images/hero-art.jpeg');">
+      <div class="hero-text neon-text">Welcome To The Royalty Vault</div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="w-full text-center">
+      <!-- Loading State -->
+      <div id="loading-state" class="text-center">
+        <div class="loader"></div>
+        <p class="mt-2 text-gray-400">Connecting to the blockchain...</p>
+      </div>
+
+      <!-- Wallet Connection -->
+      <div class="text-center mb-6">
+        <button id="connect-wallet" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          Connect Wallet
+          <span class="button-spinner" id="connect-spinner"></span>
+        </button>
+        <div id="wallet-display" class="mt-4 bg-gray-700 p-4 rounded-lg hidden">
+          <h2 class="text-lg font-semibold mb-2">Connected Wallet:</h2>
+          <p id="connected-wallet" class="text-yellow-400 font-mono break-all"></p>
+        </div>
+      </div>
+
+      <!-- Scan Progress -->
+      <div id="scan-progress" class="bg-gray-700 p-4 rounded-lg mb-6 hidden">
+        <h2 class="text-lg font-semibold mb-2">Scan Progress</h2>
+        <div class="mb-4">
+          <div class="flex justify-between mb-1">
+            <span class="text-sm text-gray-300">Progress</span>
+            <span id="progress-percentage" class="text-sm text-gray-300">0%</span>
+          </div>
+          <div class="w-full bg-gray-600 rounded-full h-3">
+            <div id="progress-bar" class="bg-green-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        <p id="scan-status" class="text-sm text-gray-300"></p>
+        <p class="text-sm text-gray-300 mt-2">Total NFTs Scanned: <span id="total-nfts-count" class="text-yellow-400">0</span></p>
+      </div>
+
+      <!-- Deploy and Manage Buttons -->
+      <div class="text-center mb-6 flex justify-center space-x-4 flex-wrap">
+        <button id="deploy-contract-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500">
+          Deploy Contract
+        </button>
+        <button id="manage-contracts-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          Manage Contracts
+        </button>
+      </div>
+
+      <!-- Deploy Contract Form -->
+      <div id="deploy-form" class="hidden bg-gray-700 p-6 rounded-lg mb-6 shadow-lg transform transition-all duration-300 w-full">
+        <h2 class="text-xl font-semibold mb-4 text-blue-300 neon-text">Deploy Royalty Contract</h2>
+        <form id="deploy-contract-form">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-300 mb-1" for="emergency-wallet">Emergency Wallet Address</label>
+            <input type="text" id="emergency-wallet" class="w-full p-3 rounded bg-gray-600 text-white border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required placeholder="0x...">
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-300 mb-1" for="total-token-supply">Total Token Supply</label>
+            <input type="number" id="total-token-supply" class="w-full p-3 rounded bg-gray-600 text-white border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required placeholder="Enter token supply">
+          </div>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            Deploy Contract
+          </button>
+        </form>
+      </div>
+
+      <!-- Royalty Section -->
+      <div id="royalty-section" class="p-6 rounded-lg mb-6 shadow-lg w-full">
+        <h2 class="text-2xl font-semibold mb-4 text-blue-300 neon-text">Your Royalties</h2>
+        <div id="royalty-list" class="space-y-4 text-center">
+          <div class="text-yellow-400 text-lg animate-pulse">Connect your wallet to scan for NFTs...</div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="bg-gray-800 p-4 text-center text-gray-400 w-full">
+        <p>© 2025 BluebirdX Web3 Applications Incorporated. All rights reserved.</p>
+        <div class="footer-art mt-4" style="background-image: url('/images/footer-art.jpeg');"></div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification hidden" role="alert" aria-live="polite">
+    <div class="notification-content">
+      <p class="message"></p>
+      <a href="#" target="_blank" class="tx-link hidden">View Transaction</a>
+    </div>
+    <button class="notification-close absolute top-2 right-2 text-white text-lg">×</button>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/menu.js"></script>
+  <script type="module" src="/js/dist/bundle.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM fully loaded from inline script');
+      document.body.classList.remove('loading');
+
+      // Hide loading state after 500ms
+      const loadingState = document.getElementById('loading-state');
+      if (loadingState) {
+        setTimeout(() => {
+          loadingState.classList.add('hidden');
+        }, 500);
+      }
+
+      // Header scroll effect
+      const header = document.querySelector('nav');
+      let lastScroll = 0;
+      window.addEventListener('scroll', () => {
+        const currentScroll = window.pageYOffset;
+        if (currentScroll > lastScroll && currentScroll > 60) {
+          header.classList.remove('active');
+          header.classList.add('scrolled');
+        } else {
+          header.classList.remove('scrolled');
+          header.classList.add('active');
+        }
+        lastScroll = currentScroll;
+      });
+    });
+  </script>
+</body>
+</html>

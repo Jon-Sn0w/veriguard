@@ -164,6 +164,28 @@ async function retrieveUserData(username) {
     }
 }
 
+async function deleteVerificationDataByDiscordId(discordId) {
+  try {
+    const keys = await redisClient.keys('verification:*');
+    const keysToDelete = [];
+    for (const key of keys) {
+      const data = await redisClient.get(key);
+      if (data) {
+        const parsedData = JSON.parse(data);
+        if (parsedData.discordId === discordId) {
+          keysToDelete.push(key);
+        }
+      }
+    }
+    if (keysToDelete.length > 0) {
+      await redisClient.del(keysToDelete);
+      console.log(`[DEBUG] Cleared ${keysToDelete.length} session entries for discordId ${discordId}`);
+    }
+  } catch (error) {
+    console.error(`[ERROR] Failed to clear session data for discordId ${discordId}:`, error);
+  }
+}
+
 function setupSession() {
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -189,5 +211,6 @@ module.exports = {
     deleteSession,
     storeUserData,
     retrieveUserData,
-    setupSession
+    setupSession,
+    deleteVerificationDataByDiscordId
 };

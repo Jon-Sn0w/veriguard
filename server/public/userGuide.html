@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VeriGuard NFT User Guide</title>
+    <link rel="stylesheet" href="/styles/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="loading" id="body">
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-white font-bold text-xl">VeriGuard NFT</div>
+            <div class="relative">
+                <button id="menu-button" class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                    <span>Menu</span>
+                    <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5 7h10L10 13z"/>
+                    </svg>
+                </button>
+                <div id="dropdown-menu" class="dropdown-menu absolute hidden text-gray-700 pt-1">
+                    <!-- Menu items will be populated by menu.js -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div class="container mx-auto px-4 py-6 max-w-5xl flex flex-col items-center">
+        <!-- Hero Section -->
+        <div class="hero-art relative text-center w-full mb-6" style="background-image: url('/images/hero-art.jpeg');">
+            <div class="hero-text text-white">VeriGuard NFT User Guide</div>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="w-full text-center mb-6">
+            <h2 class="text-2xl font-semibold mb-4 text-white">Table of Contents</h2>
+            <ul class="space-y-2 text-gray-300">
+                <li><a href="#for-users" class="hover:text-white">For Users</a>
+                    <ul class="ml-4 space-y-1">
+                        <li><a href="#basic-commands" class="hover:text-white">Basic Commands</a></li>
+                        <li><a href="#verification-process" class="hover:text-white">Verification Process</a></li>
+                        <li><a href="#checking-nft-status" class="hover:text-white">Checking NFT Status</a></li>
+                    </ul>
+                </li>
+                <li><a href="#for-moderators" class="hover:text-white">For Moderators</a>
+                    <ul class="ml-4 space-y-1">
+                        <li><a href="#role-management" class="hover:text-white">Role Management</a></li>
+                        <li><a href="#nft-management" class="hover:text-white">NFT Management</a></li>
+                        <li><a href="#royalties" class="hover:text-white">Royalties System</a></li>
+                    </ul>
+                </li>
+                <li><a href="#web-interface" class="hover:text-white">Web Interface Instructions</a></li>
+                <li><a href="#troubleshooting" class="hover:text-white">Troubleshooting</a></li>
+            </ul>
+        </div>
+
+        <!-- Guide Sections with Dropdown Cards -->
+        <div class="w-full space-y-4">
+            <!-- For Users -->
+            <div class="collection-container bg-gray-900 p-6 rounded-lg shadow-lg" id="for-users">
+                <button class="w-full text-left text-xl font-semibold text-white flex justify-between items-center" onclick="toggleSection('for-users-content')">
+                    For Users
+                    <svg class="w-6 h-6 fill-current transform transition-transform duration-300" id="for-users-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414L10 14.414l-4.707-4.707a1 1 0 010-1.414z"/>
+                    </svg>
+                </button>
+                <div id="for-users-content" class="hidden mt-4 space-y-4 text-gray-300">
+                    <div id="basic-commands">
+                        <h3 class="text-lg font-semibold text-blue-300">Basic Commands</h3>
+                        <p>All commands use the <code>/</code> prefix in Discord:</p>
+                        <ul class="list-disc ml-6">
+                            <li><code>/verify</code>: Start NFT ownership verification.</li>
+                            <li><code>/continue</code>: Complete verification after wallet connection.</li>
+                            <li><code>/checkusernfts</code>: View a user’s NFT holdings (moderator only).</li>
+                        </ul>
+                    </div>
+                    <div id="verification-process">
+                        <h3 class="text-lg font-semibold text-blue-300">Verification Process</h3>
+                        <h4 class="text-md font-medium">Prerequisites</h4>
+                        <p>Ensure you have:</p>
+                        <ul class="list-disc ml-6">
+                            <li>A wallet (e.g., MetaMask) with your NFTs.</li>
+                            <li>The NFT contract address you want to verify.</li>
+                            <li>Access to a Discord server with the VeriGuard bot.</li>
+                        </ul>
+                        <h4 class="text-md font-medium">Step 1: Start Verification</h4>
+                        <p>Type in Discord:</p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/verify walletaddress:0xYourWallet nftaddress:0xNFTAddress</code></pre>
+                        <p>The bot will prompt you to select a network (Songbird, Flare, Basechain). Click the button for your NFT’s network.</p>
+                        <h4 class="text-md font-medium">Step 2: Web Verification</h4>
+                        <p>The bot provides a link (e.g., <code>https://veriguardnft.xyz/verify?token=xyz&chain=songbird</code>). Click it to:</p>
+                        <ul class="list-disc ml-6">
+                            <li>Connect the same wallet you specified in <code>/verify</code>.</li>
+                            <li>Sign a gas-free message to prove ownership.</li>
+                        </ul>
+                        <p>For sKYCt NFTs (address <code>0x3BA20E48977253e21De57E187F4E5721824642a1</code>), use <code>/verifyskyct walletaddress:0xYourWallet</code> (Flare only).</p>
+                        <h4 class="text-md font-medium">Step 3: Complete Verification</h4>
+                        <p>Return to Discord and type:</p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/continue</code></pre>
+                        <p>The bot will verify your NFTs and assign roles based on ownership and server settings.</p>
+                    </div>
+                    <div id="checking-nft-status">
+                        <h3 class="text-lg font-semibold text-blue-300">Checking NFT Status</h3>
+                        <p>Moderators can check your NFTs with:</p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/checkusernfts username:YourUsername</code></pre>
+                        <p>Displays wallet addresses, NFT counts, and eligible roles.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- For Moderators -->
+            <div class="collection-container bg-gray-900 p-6 rounded-lg shadow-lg" id="for-moderators">
+                <button class="w-full text-left text-xl font-semibold text-white flex justify-between items-center" onclick="toggleSection('for-moderators-content')">
+                    For Moderators
+                    <svg class="w-6 h-6 fill-current transform transition-transform duration-300" id="for-moderators-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414L10 14.414l-4.707-4.707a1 1 0 010-1.414z"/>
+                    </svg>
+                </button>
+                <div id="for-moderators-content" class="hidden mt-4 space-y-4 text-gray-300">
+                    <div id="role-management">
+                        <h3 class="text-lg font-semibold text-blue-300">Role Management</h3>
+                        <p><strong>Register Role:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/register-guild-role nftaddress:0x... rolename:RoleName mincount:1</code></pre>
+                        <p>Also use <a href="https://veriguardnft.xyz/registerRole" class="text-blue-400 hover:underline">Register Role</a> on the web.</p>
+                        <p><strong>Register Value Role:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/register-guild-value-role nftaddress:0x... rolename:RoleName requiredvalue:10</code></pre>
+                        <p>Also use <a href="https://veriguardnft.xyz/registerValueRole" class="text-blue-400 hover:underline">Register Value Role</a>.</p>
+                        <p><strong>Unregister:</strong> Use web interface at <a href="https://veriguardnft.xyz/registerRole" class="text-blue-400 hover:underline">Register Role</a> or <a href="https://veriguardnft.xyz/registerValueRole" class="text-blue-400 hover:underline">Register Value Role</a>.</p>
+                    </div>
+                    <div id="nft-management">
+                        <h3 class="text-lg font-semibold text-blue-300">NFT Management</h3>
+                        <p><strong>Add NFT:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/register-guild-nft nftaddress:0x...</code></pre>
+                        <p>Then use <a href="https://veriguardnft.xyz/addNFT" class="text-blue-400 hover:underline">Add NFT</a> on the web.</p>
+                        <p><strong>Remove NFT:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/unregister-guild-nft nftaddress:0x...</code></pre>
+                        <p>Then use <a href="https://veriguardnft.xyz/removeNFT" class="text-blue-400 hover:underline">Remove NFT</a>.</p>
+                        <p><strong>List NFTs:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/list-guild-nfts</code></pre>
+                        <p><strong>Update All Roles:</strong></p>
+                        <pre class="bg-gray-800 p-2 rounded"><code>/updateallroles nftaddress:0x...</code></pre>
+                    </div>
+                    <div id="royalties">
+                        <h3 class="text-lg font-semibold text-blue-300">Royalties System</h3>
+                        <p>Manage and view royalty distributions at <a href="https://veriguardnft.xyz/royaltyCollections" class="text-blue-400 hover:underline">Royalty Collections</a>.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Interface Instructions -->
+            <div class="collection-container bg-gray-900 p-6 rounded-lg shadow-lg" id="web-interface">
+                <button class="w-full text-left text-xl font-semibold text-white flex justify-between items-center" onclick="toggleSection('web-interface-content')">
+                    Web Interface Instructions
+                    <svg class="w-6 h-6 fill-current transform transition-transform duration-300" id="web-interface-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414L10 14.414l-4.707-4.707a1 1 0 010-1.414z"/>
+                    </svg>
+                </button>
+                <div id="web-interface-content" class="hidden mt-4 space-y-4 text-gray-300">
+                    <p>Use <a href="https://veriguardnft.xyz" class="text-blue-400 hover:underline">veriguardnft.xyz</a> for:</p>
+                    <ul class="list-disc ml-6">
+                        <li><a href="https://veriguardnft.xyz/addNFT" class="text-blue-400 hover:underline">Add NFT</a>: Register NFTs with network selection and wallet approval.</li>
+                        <li><a href="https://veriguardnft.xyz/removeNFT" class="text-blue-400 hover:underline">Remove NFT</a>: Unregister NFTs.</li>
+                        <li><a href="https://veriguardnft.xyz/registerRole" class="text-blue-400 hover:underline">Register Role</a>: Set standard roles.</li>
+                        <li><a href="https://veriguardnft.xyz/registerValueRole" class="text-blue-400 hover:underline">Register Value Role</a>: Set value-based roles.</li>
+                        <li><a href="https://veriguardnft.xyz/royaltyCollections" class="text-blue-400 hover:underline">Royalty Collections</a>: Manage royalties.</li>
+                    </ul>
+                    <p>Connect your wallet on each page to perform actions.</p>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="collection-container bg-gray-900 p-6 rounded-lg shadow-lg" id="troubleshooting">
+                <button class="w-full text-left text-xl font-semibold text-white flex justify-between items-center" onclick="toggleSection('troubleshooting-content')">
+                    Troubleshooting
+                    <svg class="w-6 h-6 fill-current transform transition-transform duration-300" id="troubleshooting-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.707a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414L10 14.414l-4.707-4.707a1 1 0 010-1.414z"/>
+                    </svg>
+                </button>
+                <div id="troubleshooting-content" class="hidden mt-4 space-y-4 text-gray-300">
+                    <h3 class="text-lg font-semibold text-blue-300">Common Issues</h3>
+                    <p><strong>Verification Fails:</strong> Ensure wallet matches `/verify` input, sign the message, and use `/continue`.</p>
+                    <p><strong>No Roles Assigned:</strong> Check NFT registration and role setup with moderators.</p>
+                    <p><strong>Bot Unresponsive:</strong> Verify bot is online and you have command permissions.</p>
+                    <p><strong>Web Errors:</strong> Clear cache, allow wallet pop-ups, and retry.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 p-4 text-center text-gray-400 w-full mt-6">
+            <p>© 2025 BluebirdX Web3 Applications Incorporated. All rights reserved.</p>
+            <div class="footer-art mt-4" style="background-image: url('/images/footer-art.jpeg');"></div>
+        </footer>
+    </div>
+
+    <script src="/js/menu.js"></script>
+    <script>
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId);
+            const arrow = document.getElementById(`${sectionId.split('-content')[0]}-arrow`);
+            content.classList.toggle('hidden');
+            arrow.classList.toggle('rotate-180');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.remove('loading');
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        targetElement.scrollIntoView({ behavior: 'smooth' });
+                        const parentContent = targetElement.closest('.hidden');
+                        if (parentContent) {
+                            parentContent.classList.remove('hidden');
+                            const button = parentContent.previousElementSibling;
+                            const arrow = button.querySelector('svg');
+                            if (arrow) arrow.classList.add('rotate-180');
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
