@@ -74,832 +74,1028 @@ const NFT_ABI = [
 ];
 // Royalty Distributor ABI
 const ROYALTY_ABI = [
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_totalTokenSupply",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "_emergencyWallet",
-				"type": "address"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "target",
-				"type": "address"
-			}
-		],
-		"name": "AddressEmptyCode",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "FailedCall",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "InsufficientBalance",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "InvalidAddress",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "InvalidState",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "NotAuthorized",
-		"type": "error"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "owner",
-				"type": "address"
-			}
-		],
-		"name": "OwnableInvalidOwner",
-		"type": "error"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			}
-		],
-		"name": "OwnableUnauthorizedAccount",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "TokenNotSupported",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "TransferFailed",
-		"type": "error"
-	},
-	{
-		"inputs": [],
-		"name": "ZeroAmount",
-		"type": "error"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "provider",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "Delegated",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "sender",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "Deposited",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "oldWallet",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newWallet",
-				"type": "address"
-			}
-		],
-		"name": "EmergencyWalletUpdated",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "EmergencyWithdrawal",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "previousOwner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "OwnershipTransferred",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			}
-		],
-		"name": "Paused",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "PaymentTokenAdded",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "PaymentTokenRemoved",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "claimer",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256[]",
-				"name": "tokenIds",
-				"type": "uint256[]"
-			},
-			{
-				"indexed": false,
-				"internalType": "address[]",
-				"name": "paymentTokens",
-				"type": "address[]"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256[]",
-				"name": "amounts",
-				"type": "uint256[]"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "timestamp",
-				"type": "uint256"
-			}
-		],
-		"name": "RewardsClaimed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "RewardsClaimedFTSO",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "epoch",
-				"type": "uint256"
-			}
-		],
-		"name": "RoyaltyReceived",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			}
-		],
-		"name": "Unpaused",
-		"type": "event"
-	},
-	{
-		"inputs": [],
-		"name": "ETH_ADDRESS",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "FEE_RECIPIENT",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "PRECISION",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "addPaymentToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "claimFTSORewards",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "tokenIds",
-				"type": "uint256[]"
-			},
-			{
-				"internalType": "address[]",
-				"name": "paymentTokens",
-				"type": "address[]"
-			}
-		],
-		"name": "claimRewards",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "cumulativeRewardPerToken",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "emergencyWallet",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "epochCounter",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "erc721Token",
-		"outputs": [
-			{
-				"internalType": "contract IERC721",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "executeEmergencyWithdrawal",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "ftsoProvider",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "ftsoRewardManager",
-		"outputs": [
-			{
-				"internalType": "contract IFtsoRewardManager",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "tokenIds",
-				"type": "uint256[]"
-			}
-		],
-		"name": "getClaimableTokens",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getSupportedPaymentTokens",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getWSGBBalance",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			}
-		],
-		"name": "isValidTokenId",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "lastClaimedCumulativeReward",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "lastClaimedEpoch",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "lastKnownBalance",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes[]",
-				"name": "data",
-				"type": "bytes[]"
-			}
-		],
-		"name": "multicall",
-		"outputs": [
-			{
-				"internalType": "bytes[]",
-				"name": "results",
-				"type": "bytes[]"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "paused",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address[]",
-				"name": "erc20Tokens",
-				"type": "address[]"
-			}
-		],
-		"name": "processAccumulatedERC20Payments",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "removePaymentToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newProvider",
-				"type": "address"
-			}
-		],
-		"name": "setFtsoProvider",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_tokenContract",
-				"type": "address"
-			}
-		],
-		"name": "setTokenContract",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "supportedPaymentTokens",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "supportedTokensList",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "totalTokenSupply",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_newWallet",
-				"type": "address"
-			}
-		],
-		"name": "updateEmergencyWallet",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "wNat",
-		"outputs": [
-			{
-				"internalType": "contract IWNat",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "wrapSGB",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
-	}
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "_totalTokenSupply",
+                                "type": "uint256"
+                        },
+                        {
+                                "internalType": "address",
+                                "name": "_emergencyWallet",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "target",
+                                "type": "address"
+                        }
+                ],
+                "name": "AddressEmptyCode",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "FailedCall",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "InsufficientBalance",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "InvalidAddress",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "InvalidState",
+                "type": "error"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "owner",
+                                "type": "address"
+                        }
+                ],
+                "name": "OwnableInvalidOwner",
+                "type": "error"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "account",
+                                "type": "address"
+                        }
+                ],
+                "name": "OwnableUnauthorizedAccount",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "TokenNotSupported",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "TransferFailed",
+                "type": "error"
+        },
+        {
+                "inputs": [],
+                "name": "ZeroAmount",
+                "type": "error"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "provider",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "Delegated",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "sender",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "Deposited",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "oldWallet",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "newWallet",
+                                "type": "address"
+                        }
+                ],
+                "name": "EmergencyWalletUpdated",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "EmergencyWithdrawal",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "oldAddress",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "newAddress",
+                                "type": "address"
+                        }
+                ],
+                "name": "FtsoRewardManagerUpdated",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "month",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "MonthlyRewardsClaimed",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "string",
+                                "name": "reason",
+                                "type": "string"
+                        }
+                ],
+                "name": "MonthlyRewardsClaimedWithReason",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "previousOwner",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "newOwner",
+                                "type": "address"
+                        }
+                ],
+                "name": "OwnershipTransferred",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "address",
+                                "name": "account",
+                                "type": "address"
+                        }
+                ],
+                "name": "Paused",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        }
+                ],
+                "name": "PaymentTokenAdded",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        }
+                ],
+                "name": "PaymentTokenRemoved",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "claimer",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256[]",
+                                "name": "tokenIds",
+                                "type": "uint256[]"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "address[]",
+                                "name": "paymentTokens",
+                                "type": "address[]"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256[]",
+                                "name": "amounts",
+                                "type": "uint256[]"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "timestamp",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "RewardsClaimed",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "RewardsClaimedFTSO",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "string",
+                                "name": "reason",
+                                "type": "string"
+                        }
+                ],
+                "name": "RewardsClaimedFTSOWithReason",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": true,
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "amount",
+                                "type": "uint256"
+                        },
+                        {
+                                "indexed": false,
+                                "internalType": "uint256",
+                                "name": "epoch",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "RoyaltyReceived",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [],
+                "name": "Undelegated",
+                "type": "event"
+        },
+        {
+                "anonymous": false,
+                "inputs": [
+                        {
+                                "indexed": false,
+                                "internalType": "address",
+                                "name": "account",
+                                "type": "address"
+                        }
+                ],
+                "name": "Unpaused",
+                "type": "event"
+        },
+        {
+                "inputs": [],
+                "name": "ETH_ADDRESS",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "FEE_RECIPIENT",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "IS_CHAIN_WITH_MONTHLY_REWARDS",
+                "outputs": [
+                        {
+                                "internalType": "bool",
+                                "name": "",
+                                "type": "bool"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "PRECISION",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        }
+                ],
+                "name": "addPaymentToken",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "claimFTSORewards",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "claimMonthlyFlareDrops",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256[]",
+                                "name": "tokenIds",
+                                "type": "uint256[]"
+                        },
+                        {
+                                "internalType": "address[]",
+                                "name": "paymentTokens",
+                                "type": "address[]"
+                        }
+                ],
+                "name": "claimRewards",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "cumulativeRewardPerToken",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "emergencyWallet",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "epochCounter",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "erc721Token",
+                "outputs": [
+                        {
+                                "internalType": "contract IERC721",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "executeEmergencyWithdrawal",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "flareContractRegistry",
+                "outputs": [
+                        {
+                                "internalType": "contract IFlareContractRegistry",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "ftsoProvider",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "ftsoRewardManager",
+                "outputs": [
+                        {
+                                "internalType": "contract IFtsoRewardManagerV2",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "ftsoRewardManagerAddress",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "user",
+                                "type": "address"
+                        },
+                        {
+                                "internalType": "uint256[]",
+                                "name": "tokenIds",
+                                "type": "uint256[]"
+                        }
+                ],
+                "name": "getClaimableTokens",
+                "outputs": [
+                        {
+                                "internalType": "address[]",
+                                "name": "",
+                                "type": "address[]"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "getSupportedPaymentTokens",
+                "outputs": [
+                        {
+                                "internalType": "address[]",
+                                "name": "",
+                                "type": "address[]"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "getWSGBBalance",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "hasClaimableFTSORewards",
+                "outputs": [
+                        {
+                                "internalType": "bool",
+                                "name": "",
+                                "type": "bool"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "tokenId",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "isValidTokenId",
+                "outputs": [
+                        {
+                                "internalType": "bool",
+                                "name": "",
+                                "type": "bool"
+                        }
+                ],
+                "stateMutability": "pure",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        },
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "lastClaimedCumulativeReward",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        },
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "lastClaimedEpoch",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "lastKnownBalance",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "bytes[]",
+                                "name": "data",
+                                "type": "bytes[]"
+                        }
+                ],
+                "name": "multicall",
+                "outputs": [
+                        {
+                                "internalType": "bytes[]",
+                                "name": "results",
+                                "type": "bytes[]"
+                        }
+                ],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "nextClaimEpoch",
+                "outputs": [
+                        {
+                                "internalType": "uint24",
+                                "name": "",
+                                "type": "uint24"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "nextClaimMonth",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "pause",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "paused",
+                "outputs": [
+                        {
+                                "internalType": "bool",
+                                "name": "",
+                                "type": "bool"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address[]",
+                                "name": "erc20Tokens",
+                                "type": "address[]"
+                        }
+                ],
+                "name": "processAccumulatedERC20Payments",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "token",
+                                "type": "address"
+                        }
+                ],
+                "name": "removePaymentToken",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "renounceOwnership",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "newProvider",
+                                "type": "address"
+                        }
+                ],
+                "name": "setFtsoProvider",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "newManager",
+                                "type": "address"
+                        }
+                ],
+                "name": "setFtsoRewardManager",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "_tokenContract",
+                                "type": "address"
+                        }
+                ],
+                "name": "setTokenContract",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "name": "supportedPaymentTokens",
+                "outputs": [
+                        {
+                                "internalType": "bool",
+                                "name": "",
+                                "type": "bool"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "name": "supportedTokensList",
+                "outputs": [
+                        {
+                                "internalType": "address",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "totalTokenSupply",
+                "outputs": [
+                        {
+                                "internalType": "uint256",
+                                "name": "",
+                                "type": "uint256"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "newOwner",
+                                "type": "address"
+                        }
+                ],
+                "name": "transferOwnership",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "undelegateAll",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "unpause",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [
+                        {
+                                "internalType": "address",
+                                "name": "_newWallet",
+                                "type": "address"
+                        }
+                ],
+                "name": "updateEmergencyWallet",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "wNat",
+                "outputs": [
+                        {
+                                "internalType": "contract IWNat",
+                                "name": "",
+                                "type": "address"
+                        }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+        },
+        {
+                "inputs": [],
+                "name": "wrapSGB",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+        },
+        {
+                "stateMutability": "payable",
+                "type": "receive"
+        }
 ];
 
 // Factory ABI
@@ -1430,4 +1626,4 @@ const ERC721_INTERFACE_ID = "0x80ac58cd";           // ERC-721 standard
 const ERC721_ENUMERABLE_INTERFACE_ID = "0x780e9d63"; // ERC-721 Enumerable extension
 const ERC1155_INTERFACE_ID = "0xd9b67a26";          // ERC-1155 standard
 
-export { NFT_ABI, ROYALTY_ABI, FACTORY_ABI, COLLECTION_REGISTRY_ABI, ERC721_INTERFACE_ID, ERC721_ENUMERABLE_INTERFACE_ID, ERC1155_INTERFACE_ID };
+export { NFT_ABI, ROYALTY_ABI, FACTORY_ABI, COLLECTION_REGISTRY_ABI, ERC721_INTERFACE_ID, ERC721_ENUMERABLE_INTERFACE_ID, ERC1155_INTERFACE_ID }
