@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Verify Your NFT</title>
+ <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+ <link href="styles/styles.css" rel="stylesheet">
+ <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+</head>
+<body class="loading">
+ <!-- Navigation Bar -->
+ <nav class="bg-gray-800 p-4">
+ <div class="container mx-auto flex justify-between items-center">
+ <div class="text-white font-bold text-xl">Discord On Chain Verification</div>
+ <div class="relative">
+ <button id="menu-button" class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+ <span>Menu</span>
+ <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+ <path d="M5 7h10L10 13z"/> <!-- Downward arrow -->
+ </svg>
+ </button>
+ <div id="dropdown-menu" class="dropdown-menu absolute hidden text-gray-700 pt-1">
+ <!-- Menu items will be populated by menu.js -->
+ </div>
+ </div>
+ </div>
+ </nav>
+
+ <!-- Hero Section -->
+ <div class="hero-art relative text-center w-full mb-6" style="background-image: url('/images/hero-art.jpeg');">
+ <div class="hero-text text-white">Verify Your NFT</div>
+ </div>
+
+ <!-- Content -->
+ <div class="container mx-auto px-4 py-8 max-w-lg text-center">
+ <h1 class="text-4xl font-bold mb-6 text-white"></h1>
+ <p class="mb-6 text-xl text-gray-300">Please connect your wallet to verify your NFT for Discord access.</p>
+
+ <!-- Network Selection -->
+ <div class="bg-gray-900 p-6 rounded-lg mb-6 shadow-lg">
+ <label for="network" class="block text-lg mb-2 text-gray-300">Select Network:</label>
+ <select id="network" name="network" class="block w-full text-gray-900 p-2 rounded mb-4 bg-gray-700 border border-gray-600" required>
+ <option value="songbird">Songbird</option>
+ <option value="flare">Flare</option>
+ <option value="basechain">Basechain</option>
+ </select>
+ </div>
+
+ <button id="connectWalletButton" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded mb-6 transition duration-300 ease-in-out transform hover:scale-105">
+ Connect Wallet
+ </button>
+
+ <!-- Message Container -->
+ <div id="messageContainer" class="bg-gray-800 text-white p-4 rounded-lg shadow-lg mb-6"></div>
+
+ <!-- Footer -->
+ <footer class="bg-gray-800 p-4 text-center text-gray-400 w-full mt-6">
+ <p>© 2025 BluebirdX Web3 Applications Incorporated. All rights reserved.</p>
+ <div class="footer-art mt-4" style="background-image: url('/images/footer-art.jpeg');"></div>
+ </footer>
+ </div>
+
+ <script src="/js/menu.js"></script>
+ <script src="js/connectWallet.js"></script>
+ <script src="js/verify.js"></script>
+ <script>
+ document.addEventListener('DOMContentLoaded', () => {
+ document.body.classList.remove('loading');
+ });
+ </script>
+</body>
+</html>

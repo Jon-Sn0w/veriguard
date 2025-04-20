@@ -1,0 +1,15 @@
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "targets": "> 0.25%, not dead, not ie <= 11",
+      "modules": false,
+      "bugfixes": true,
+      "loose": true
+    }]
+  ],
+  "plugins": [
+    "@babel/plugin-transform-runtime",
+    "@babel/plugin-syntax-async-generators",
+    "@babel/plugin-proposal-async-generator-functions"
+  ]
+}

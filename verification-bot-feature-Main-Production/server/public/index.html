@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to VeriGuard NFT</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="styles/styles.css" rel="stylesheet">
+</head>
+<body class="loading">
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-white font-bold text-xl"></div>
+            <div class="relative">
+                <button id="menu-button" class="bg-gray-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                    <span>Menu</span>
+                    <svg class="fill-current w-4 h-4 ml-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5 7h10L10 13z"/>
+                    </svg>
+                </button>
+                <div id="dropdown-menu" class="dropdown-menu absolute hidden text-gray-700 pt-1">
+                    <!-- Menu items populated by menu.js -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero-art relative text-center w-full mb-6" style="background-image: url('/images/hero-art.jpeg');">
+        <div class="hero-text text-white">Welcome to VeriGuard NFT</div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8 max-w-4xl text-center">
+        <!-- Introduction -->
+        <h1 class="text-4xl font-bold mb-6 text-white">Empower Your NFTs with VeriGuard
+
+</h1>
+        <p class="text-xl text-gray-300 mb-8">
+            VeriGuard NFT bridges your digital assets with utility, offering seamless Discord verification with royalties and rewards management for NFT creators and collectors.
+        </p>
+
+        <!-- Overview -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">What We Offer</h2>
+            <p class="text-gray-400">
+                Our platform empowers you to verify NFT ownership for exclusive Discord roles and manage royalty distributions effortlessly. Whether you’re a collector securing community access or a creator ensuring fair compensation, VeriGuard has you covered. Currently the platform is tailored to erc-721 only, however erc-1155 compatibilitiy is in development.
+            </p>
+        </div>
+
+        <!-- Verification Explanation -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">NFT Verification</h2>
+            <p class="text-gray-400">
+                Link your wallet to our bot system via a secure verification process. Select your NFT and network (Songbird, Flare, or Basechain), and gain instant access to gated Discord communities based on your ownership—no repetitive logins required.
+            </p>
+            <a href="/userGuide" class="inline-block mt-4 bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Learn More</a>
+        </div>
+
+        <!-- Royalties Explanation -->
+        <div class="bg-gray-900 p-6 rounded-lg shadow-lg mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-white">Royalties System</h2>
+            <p class="text-gray-400">
+                Creators can deploy royalty contracts to track and distribute earnings from NFT sales. Collectors can collect accrued balances and claim any time while unsold NFTs accrue their own shares of royalty claims adding incentive for buyers of any registered collection. Our system ensures transparency and fairness in the Web3 ecosystem.
+            </p>
+            <a href="/royaltyCollections" class="inline-block mt-4 bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Explore Royalties</a>
+        </div>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 p-4 text-center text-gray-400 w-full">
+            <p>© 2025 BluebirdX Web3 Applications Incorporated. All rights reserved.</p>
+            <div class="footer-art mt-4" style="background-image: url('/images/footer-art.jpeg');"></div>
+        </footer>
+    </div>
+
+    <script src="/js/menu.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.remove('loading');
+        });
+    </script>
+</body>
+</html>
